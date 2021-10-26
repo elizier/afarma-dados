@@ -1,5 +1,7 @@
 -- afarma.alerta definition
 
+--TESTE_MUDANÇA_GIT
+
 -- Drop table
 
 -- DROP TABLE afarma.alerta;
