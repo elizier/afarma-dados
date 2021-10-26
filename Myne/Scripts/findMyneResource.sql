@@ -86,8 +86,10 @@ where replace(m.mri , 'mri::', '') = replace(resource, 'mri::', '')) as type,
  	to_json(f.data) as data from
 (select jsonb_build_object('owner_id', o.owner) || jsonb_build_object('type', o.type) || to_jsonb(o.data) || f.nested as data from
 (select f.owner, jsonb_build_object('nested', array_agg(f.data)) as nested from
+(select o.owner, f.data  from (select resource as owner) o left join 
 (select f.owner, jsonb_build_object('type', f.type) || to_jsonb(f.data)	as data 
-from findresourcebyowner(resource) f) f
+from findresourcebyowner(resource) f) f on o.owner = f.owner
+) f
 group by f.owner) f 
 cross join lateral findresourcedata(f.owner) as o ) f
 
@@ -113,10 +115,12 @@ where replace(m.mri , 'mri::', '') = replace(:resource, 'mri::', '')) as type,
  	to_json(f.data) as data from
 (select jsonb_build_object('owner_id', o.owner) || jsonb_build_object('type', o.type) || to_jsonb(o.data) || f.nested as data from
 (select f.owner, jsonb_build_object('nested', array_agg(f.data)) as nested from
+(select o.owner, f.data  from (select :resource as owner) o left join 
 (select f.owner, jsonb_build_object('type', f.type) || to_jsonb(f.data)	as data 
-from findresourcebyowner(:resource) f) f
-group by f.owner) f 
+from findresourcebyowner(:resource) f) f on o.owner = f.owner
+) f group by f.owner) f
 cross join lateral findresourcedata(f.owner) as o ) f
 
-
-select findresourcedata('ac06ba65-e689-414a-a8cd-12e7384b3803')
+select findresourcedata('09b44836-e333-4d5e-bf61-3fce37f62af4')
+select findresourcebyowner('2d3b457f-9090-40e0-884c-193a2957103e')
+select findmyneresource('3262146d-5c25-4741-8522-82b58109ccbe')
