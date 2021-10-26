@@ -1,0 +1,1 @@
+select update_merge('MERGED') ;
