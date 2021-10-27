@@ -130,7 +130,7 @@ offset 1) end)
 
 
 
-CREATE OR REPLACE FUNCTION afarma.menor_preco_grupo_crawler(ean_generico character varying)
+CREATE OR REPLACE FUNCTION afarma.menor_preco_grupo(ean_generico character varying)
  RETURNS character varying
  LANGUAGE plpgsql
 AS $function$
@@ -174,9 +174,9 @@ $function$
 
 
 
-select afarma.menor_preco_grupo_crawler_teste('7897595610096');
-select afarma.menor_preco_grupo_crawler_teste('7896112110347');
-select afarma.menor_preco_grupo_crawler_teste('7898148301287');
+select afarma.menor_preco_grupo_crawler('7897595610096');
+select afarma.menor_preco_grupo_crawler('7896112110347');
+select afarma.menor_preco_grupo_crawler('7898148301287');
 select afarma.menor_preco_grupo_crawler_teste('7899547504842');
 select afarma.menor_preco_grupo_crawler_teste('7898148290772');
 select afarma.menor_preco_grupo_crawler_teste('7896714234434');
