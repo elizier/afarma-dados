@@ -272,3 +272,13 @@ END;
 
 $function$
 ;
+
+
+
+
+
+
+select public.findmynerelations('a','a', 1000, 0);
+
+
+
