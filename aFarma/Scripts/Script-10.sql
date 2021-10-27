@@ -204,3 +204,243 @@ except
 group by p.max, p.ean, de.descricao, ca.categoria_id, ma.marca_id, dp.departamento_id, pa.id, gr.grupo_id, ph.photo_id,
 vm.avg, ci.max, ic.max
 order by p.max asc
+
+
+
+CREATE OR REPLACE FUNCTION afarma.cotacao(cotid character varying, percentual double precision, desconto double precision)
+ RETURNS SETOF afarma.cotacaotitem
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      itens afarma.cotacaotitem%ROWTYPE;
+BEGIN
+
+ 	FOR itens in
+
+SELECT cast(uuid_generate_v4() as varchar) as id
+	,i.*
+FROM (
+	(
+		SELECT i.concorrente
+			,i.cotacao as cotacao_id
+			,ROUND(CAST(sum(i.total) AS numeric),2) AS total
+		FROM (
+			SELECT i.*
+				,(i.quantidade * i.valor) AS total
+			FROM (
+				SELECT i.concorrente
+					,i.cotacao
+					,i.ean
+					,i.quantidade
+					,(
+						CASE 
+							WHEN i.valor isnull
+								THEN i.precomedio
+							WHEN i.valor < i.segundomenor * 0.20
+								THEN i.segundomenor
+							ELSE i.valor
+							END
+						) AS valor
+				FROM (
+					SELECT i.*
+						,p.segundomenor
+					FROM (
+						SELECT i.*
+							,po.precomedio
+						FROM (
+							SELECT i.*
+								,pc.valor
+							FROM (
+								SELECT *
+								FROM (
+									SELECT c.concorrente
+										,c.id AS concorrente_id
+									FROM afarma.concorrentes_estados ce
+										,afarma.concorrente c
+									WHERE c.id = ce.concorrente_id
+										AND ce.uf = (select r.uf from afarma.registrocotacao r where r.id = cotid)
+									) c
+								CROSS JOIN (
+									SELECT i.cotacao
+										,(
+											CASE 
+												WHEN i.menor isnull
+													THEN i.ean
+												ELSE i.menor
+												END
+											) AS ean
+										,i.quantidade
+									FROM (
+										SELECT *
+										FROM (
+											SELECT i.ean
+												,i.cotacao
+												,i.quantidade
+											FROM afarma.itenscot i
+											WHERE i.cotacao = cotid
+											) i
+										CROSS JOIN lateral afarma.menor_preco_grupo_crawler(i.ean) AS menor
+										) i
+									) i
+								) i
+							LEFT JOIN afarma.produtoconcorrente pc ON pc.ean = i.ean
+								AND pc.concorrente_id = i.concorrente_id
+							) i
+						LEFT JOIN (
+							SELECT pc.ean
+								,avg(nullif(pc.valor, 0)) AS precomedio
+							FROM afarma.produtoconcorrente pc
+							GROUP BY pc.ean
+							) po ON po.ean = i.ean
+						) i
+					LEFT JOIN (
+						SELECT p.ean
+							,min(p.valor) AS segundomenor
+						FROM (
+							SELECT pc.ean
+								,pc.valor
+								,p.min
+							FROM afarma.produtoconcorrente pc
+							LEFT JOIN (
+								SELECT pc.ean
+									,min(pc.valor)
+								FROM afarma.produtoconcorrente pc
+								GROUP BY pc.ean
+								) p ON pc.ean = p.ean
+							) p
+						WHERE p.valor > p.min
+						GROUP BY p.ean
+						) p ON p.ean = i.ean
+					) i
+				) i
+			) i
+		GROUP BY i.concorrente
+			,i.cotacao
+		)
+	
+	UNION ALL
+	
+	(
+		SELECT 'aFarma'
+			,i.cotacao
+			,((min(i.totalporloja) - (coalesce(desconto, 0))) * ((100 - (cast(coalesce(percentual, 0) AS FLOAT))) / (100)))
+		FROM (
+			SELECT i.concorrente
+				,i.cotacao
+				,sum(i.total) AS totalporloja
+			FROM (
+				SELECT i.*
+					,(i.quantidade * i.valor) AS total
+				FROM (
+					SELECT i.concorrente
+						,i.cotacao
+						,i.ean
+						,i.quantidade
+						,(
+							CASE 
+								WHEN i.valor isnull
+									THEN i.precomedio
+								WHEN i.valor < i.segundomenor * 0.20
+									THEN i.segundomenor
+								ELSE i.valor
+								END
+							) AS valor
+					FROM (
+						SELECT i.*
+							,p.segundomenor
+						FROM (
+							SELECT i.*
+								,po.precomedio
+							FROM (
+								SELECT i.*
+									,pc.valor
+								FROM (
+									SELECT *
+									FROM (
+										SELECT c.concorrente
+											,c.id AS concorrente_id
+										FROM afarma.concorrentes_estados ce
+											,afarma.concorrente c
+										WHERE c.id = ce.concorrente_id
+											AND ce.uf = (select r.uf from afarma.registrocotacao r where r.id = cotid)
+										) c
+									CROSS JOIN (
+										SELECT i.cotacao
+											,(
+												CASE 
+													WHEN i.menor isnull
+														THEN i.ean
+													ELSE i.menor
+													END
+												) AS ean
+											,i.quantidade
+										FROM (
+											SELECT *
+											FROM (
+												SELECT i.ean
+													,i.cotacao
+													,i.quantidade
+												FROM afarma.itenscot i
+												WHERE i.cotacao = cotid
+												) i
+											CROSS JOIN lateral afarma.menor_preco_grupo_crawler(i.ean) AS menor
+											) i
+										) i
+									) i
+								LEFT JOIN afarma.produtoconcorrente pc ON pc.ean = i.ean
+									AND pc.concorrente_id = i.concorrente_id
+								) i
+							LEFT JOIN (
+								SELECT pc.ean
+									,avg(nullif(pc.valor, 0)) AS precomedio
+								FROM afarma.produtoconcorrente pc
+								GROUP BY pc.ean
+								) po ON po.ean = i.ean
+							) i
+						LEFT JOIN (
+							SELECT p.ean
+								,min(p.valor) AS segundomenor
+							FROM (
+								SELECT pc.ean
+									,pc.valor
+									,p.min
+								FROM afarma.produtoconcorrente pc
+								LEFT JOIN (
+									SELECT pc.ean
+										,min(pc.valor)
+									FROM afarma.produtoconcorrente pc
+									GROUP BY pc.ean
+									) p ON pc.ean = p.ean
+								) p
+							WHERE p.valor > p.min
+							GROUP BY p.ean
+							) p ON p.ean = i.ean
+						) i
+					) i
+				) i
+			GROUP BY i.concorrente
+				,i.cotacao
+			) i
+		GROUP BY i.cotacao
+		)
+	) i
+	
+	
+		loop
+		RETURN NEXT itens;
+	
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
+
+
+
+
+
+83e6d83d-47b3-46b1-b0c2-abae624e5149
