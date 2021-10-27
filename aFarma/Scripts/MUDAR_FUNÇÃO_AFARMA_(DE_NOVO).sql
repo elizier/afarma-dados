@@ -1,3 +1,8 @@
+update genericos_ref set nome_grupo = g.nome from
+(select gr.id as id1, gr.grupo, gg.nome from genericos_ref gr, generico_grupo gg where gg.grupo = gr.grupo) g
+where g.id1 = id
+
+
 
 CREATE OR REPLACE FUNCTION afarma.cotacaoiaidesconto(cotid character varying, descontoitem double precision)
  RETURNS SETOF afarma.ctitem
@@ -588,23 +593,37 @@ $function$
 ;
 
 
+
+	
+	
+
+DROP TYPE afarma.itemjson;
+
+CREATE TYPE afarma.itemjson AS (
+	id varchar,
+	data json);
+
+CREATE TYPE itemjson AS (
+	id varchar,
+	"data" json);
+
+
+
+
+
 CREATE OR REPLACE FUNCTION afarma.detalhecotitem(ean_cot character varying, quantidade double precision)
- RETURNS SETOF  afarma.itemjson
+ RETURNS SETOF itemjson
  LANGUAGE plpgsql
 AS $function$
    DECLARE
-      resource_t afarma.itemjson%ROWTYPE;
+      resource_t itemjson%ROWTYPE;
 BEGIN
 
  	FOR resource_t in
 
-
-SELECT uuid_generate_v4() AS id
-	,row_to_json(i.*) as data
-FROM (
-	SELECT ean_cot AS ean
-		,array_agg(i.data) AS data
-	FROM (
+SELECT uuid_generate_v4() as id1
+		,jsonb_build_object('detalheitem', array_agg(i.data)) AS data1
+	FROM ( 
 		SELECT row_to_json(i.*) AS data
 		FROM (
 			SELECT i.*
@@ -677,10 +696,9 @@ FROM (
 				) i
 			) i
 		) i
-	) i
 
 
- 
+ 	
 loop
 		RETURN NEXT resource_t;
 	
@@ -694,8 +712,7 @@ END;
 $function$
 ;
 
-
-select afarma.detalhecotitem(:ean_cot, :quantidade)
+select * from afarma.detalhecotitem(:ean_cot, :quantidade)
 
 select p.* from afarma.produtoconcorrente p,
 (select p.ean, count(p.ean) from afarma.produtoconcorrente p where p.ean in (select distinct(r.ean) from public.ean_ref r)
