@@ -177,6 +177,12 @@ except
 
 --DEPARTAMENTOS
 
+CREATE TABLE afarma.departamento_xpto (
+	id varchar NOT NULL DEFAULT uuid_generate_v4(),
+	departamento varchar(36) NULL
+);
+
+
 CREATE TABLE afarma.departamento_de_para (
 	id varchar NOT NULL DEFAULT uuid_generate_v4(),
 	departamento_id varchar(36) NULL,
