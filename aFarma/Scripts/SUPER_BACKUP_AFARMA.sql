@@ -154,8 +154,8 @@ FROM
 	where pr.date=p.date and pr.ean1=p.ean1 and p.concorrente=pr.concorrente) p
 	group by p.date, p.concorrente, p.ean1) p
 	where p.concorrente=implementation and p.ean1=ean;
-	
-	
+
+
 	
 --Insert Categoria
 
@@ -176,6 +176,14 @@ except
 
 
 --DEPARTAMENTOS
+
+CREATE TABLE afarma.departamento_de_para (
+	id varchar NOT NULL DEFAULT uuid_generate_v4(),
+	departamento_id varchar(36) NULL,
+	departamento varchar(255) null,
+	departamento_xpto_id varchar(36) null,
+	departamento_xpto varchar(255) null
+);
 
 
 insert into afarma.departamento_xpto select uuid_generate_v4(), d.translate from
@@ -204,11 +212,18 @@ group by s.id , s.departamento) z;
 
 --FOTO
 
-insert into afarma.photo select uuid_generate_v4() , p.photo
+insert into afarma.photo select uuid_generate_v4() , p.pathimage 
 from 
-((select distinct(p.photo) from public.product p)
+((select distinct(p.pathimage ) from public.product p)
 except
-(select p.photo from afarma.photo p)) p;
+(select p.pathimage  from afarma.photo p)) p;
+
+update public.product set pathimage = p.newpath  from
+(select p.id as id1, p."implementation", p.pathimage, concat('/',p."implementation",'/img_',p.id,'.png') as newpath  from public.product p) p
+where id = p.id1
+
+
+
 
 
 --PRINCIPIO ATIVO
@@ -223,7 +238,7 @@ except
 
 insert into afarma.produtocrawler
 select (cast(uuid_generate_v4() as varchar)), y.contraindicacao, y.descricao,y.ean,y.indicacao, translate (UPPER(y.nome),'áàâãäåaaaÁÂÃÄÅAAAÀéèêëeeeeeEEEÉEEÈìíîïìiiiÌÍÎÏÌIIIóôõöoooòÒÓÔÕÖOOOùúûüuuuuÙÚÛÜUUUUçÇñÑýÝ',
-'aaaaaaaaaAAAAAAAAAeeeeeeeeeEEEEEEEiiiiiiiiIIIIIIIIooooooooOOOOOOOOuuuuuuuuUUUUUUUUcCnNyY'), '',y.categoria,y.marca,(cast(y.photo as varchar)),y.departamento,
+'aaaaaaaaaAAAAAAAAAeeeeeeeeeEEEEEEEiiiiiiiiIIIIIIIIooooooooOOOOOOOOuuuuuuuuUUUUUUUUcCnNyY'),y.categoria,y.departamento, y.marca,(cast(y.photo as varchar)),
 y.principioativo , '' as produto_tsv 
 from 
 (select
@@ -273,7 +288,7 @@ dx.departamento=dp.departamento_xpto
 and 
 dp.departamento_afarma_id=d.id 
 and
-f.photo=p.photo
+f.pathimage = p.pathimage
 and 
 translate (UPPER(p.name),'áàâãäåaaaÁÂÃÄÅAAAÀéèêëeeeeeEEEÉEEÈìíîïìiiiÌÍÎÏÌIIIóôõöoooòÒÓÔÕÖOOOùúûüuuuuÙÚÛÜUUUUçÇñÑýÝ',
 'aaaaaaaaaAAAAAAAAAeeeeeeeeeEEEEEEEiiiiiiiiIIIIIIIIooooooooOOOOOOOOuuuuuuuuUUUUUUUUcCnNyY') in 
@@ -289,7 +304,6 @@ left join afarma.principioativo a
 on a.descricao=p.active_ingredient) n 
 on (n.nome=m.nome and n.ean=m.ean and n.descricao=m.active_ingredient)) y
  ;
-
 
 update afarma.produtocrawler set produto_tsv=p.tsv from
 (select p.id as id1, (to_tsvector('portuguese',upper(unaccent(p.nome))) || to_tsvector('portuguese',upper(unaccent(p.categoria))) || 
@@ -322,13 +336,13 @@ where id=p.id1
 
 -- CONCORRENTE ESTADOS
 
---insert into afarma.concorrentes_estados select c.id, c.concorrente_id, c.uf  from
---(select uuid_generate_v4() as id, c.concorrente_id, 'SP' as uf
---from
---(
---select distinct(c.id) as concorrente_id from afarma.concorrente c
---except
---select distinct(c.concorrente_id) from afarma.concorrentes_estados c) c ) c
+insert into afarma.concorrentes_estados select c.id, c.concorrente_id, c.uf  from
+(select uuid_generate_v4() as id, c.concorrente_id, 'RJ' as uf
+from
+(
+select distinct(c.id) as concorrente_id from afarma.concorrente c
+except
+select distinct(c.concorrente_id) from afarma.concorrentes_estados c) c ) c
 
 
 -- PRODUTO CONCORRENTE
@@ -351,7 +365,7 @@ translate(UPPER(p.implementation),'áàâãäåaaaÁÂÃÄÅAAAÀéèêëeeeeeEEEÉEEÈìíîïìiiiÌÍÎ
 'aaaaaaaaaAAAAAAAAAeeeeeeeeeEEEEEEEiiiiiiiiIIIIIIIIooooooooOOOOOOOOuuuuuuuuUUUUUUUUcCnNyY') = c.concorrente 
 and translate(UPPER(p.name),'áàâãäåaaaÁÂÃÄÅAAAÀéèêëeeeeeEEEÉEEÈìíîïìiiiÌÍÎÏÌIIIóôõöoooòÒÓÔÕÖOOOùúûüuuuuÙÚÛÜUUUUçÇñÑýÝ',
 'aaaaaaaaaAAAAAAAAAeeeeeeeeeEEEEEEEiiiiiiiiIIIIIIIIooooooooOOOOOOOOuuuuuuuuUUUUUUUUcCnNyY') =k.nome
-and f.id=k.photo_id and f.photo=p.photo
+and f.id=k.photo_id and f.pathimage = p.pathimage
 and 
 p.ean in
 ((select translate (UPPER(p.ean),'áàâãäåaaaÁÂÃÄÅAAAÀéèêëeeeeeEEEÉEEÈìíîïìiiiÌÍÎÏÌIIIóôõöoooòÒÓÔÕÖOOOùúûüuuuuÙÚÛÜUUUUçÇñÑýÝ',
@@ -476,47 +490,62 @@ from afarma.categoria g where g.categoria!='')
 except 
 (select d.nome, d.tipo_id from afarma.dominio d)) c;
 
-insert into afarma.dominio select uuid_generate_v4() from
-select distinct(unaccent(upper(pr.category))) from public.product_ref pr
+insert into afarma.dominio select uuid_generate_v4(), c.categoria,
+(select t.id from afarma.tipodominio t where t.nome = 'CATEGORIA') as tipo_id from
+(select distinct(unaccent(UPPER(pr.category))) as categoria from public.product_ref pr
 except
-select distinct(dm.nome) from afarma.dominio dm where dm.tipo_id = 'f8db5ab4-cf16-4ca6-8183-183f35ae28f3'
+select distinct (dm.nome) from afarma.dominio dm where dm.tipo_id = (select t.id from afarma.tipodominio t where t.nome = 'CATEGORIA')) c
 
+--Grupo
 
-(select max(gr.name), gr.ean from public.genericos_ref gr
-group by gr.ean)
-union all
-(select max(pr.name), pr.ean from  public.product_ref pr
-where pr.ean in (select pr.ean from public.product_ref pr except select distinct(gr.ean) from public.genericos_ref gr)
-group by pr.ean )
+insert into afarma.dominio select uuid_generate_v4(), g.nome, (select t.id from afarma.tipodominio t where t.nome = 'GRUPO')
+from
+(select distinct(gg.nome) from generico_grupo gg) g
 
 
 
 --Produto
 
-insert into afarma.produto select uuid_generate_v4(), re.contraindicacao, re.descricao,  re.ean, re.indicacao, '',
-re.nome, re.precomedio,  re.categoria_id, re.departamento_id, re.grupo_id, 
-re.marca_id, re.photo_id,  re.principioativo_id,   
+insert into afarma.produto select uuid_generate_v4(), re.contraindicacao, re.descricao,  re.ean, re.indicacao, '', re.nome,  
+re.precomedio, re.categoria_id, re.departamento_id, re.grupo_id, re.marca_id, re.photo_id,  re.principioativo_id,   
 ''
 from
 (
-select p.max as "nome", p.ean, coalesce(max(de.descricao),'-') as descricao,
-coalesce(max(ca.categoria_id),'c5ca785c-ef18-4def-83dd-274eddfbb737') as categoria_id ,
-coalesce(max(ma.marca_id),'377d7463-277e-4e76-b02d-72bec35c52bb') as marca_id ,
-coalesce(max(ph.photo_id), '01873bab-49a3-42c6-a69c-5deb235ed38d') as photo_id ,
-coalesce(max(dp.departamento_id), 'e4559d0f-3898-4a32-a423-fc7a95e50d75') as departamento_id,
-coalesce(max(pa.id), '6d3ad24b-ba9e-4c80-a827-6ba00fd9ca29') as "principioativo_id",
-coalesce(max(gr.grupo_id), 'da11f19a-89c0-48d1-a333-4d896c73c3a1') as grupo_id ,
-max(ci.max) as "contraindicacao", 
-max(ic.max) as "indicacao", cast(vm.avg as float) as "precomedio"
+select p.max as "nome", p.ean, de.descricao, 
+(case when ca.categoria_id isnull then 
+(select d.id from afarma.dominio d where d.nome = 'NÃO IDENTIFICADO' and d.tipo_id = (select t.id from afarma.tipodominio t where t.nome = 'CATEGORIA'))
+else ca.categoria_id end),
+(case when ma.marca_id isnull then 
+(select d.id from afarma.dominio d where d.nome = 'NÃO IDENTIFICADO' and d.tipo_id = (select t.id from afarma.tipodominio t where t.nome = 'MARCA'))
+else ma.marca_id end) ,
+(case when ph.photo_id isnull then 
+'01873bab-49a3-42c6-a69c-5deb235ed38d'
+else ph.photo_id end),
+(case when dp.departamento_id isnull then 
+(select d.id from afarma.dominio d where d.nome = 'NÃO IDENTIFICADO' and d.tipo_id = (select t.id from afarma.tipodominio t where t.nome = 'DEPARTAMENTO'))
+else dp.departamento_id end), 
+(case when pa.id isnull then 
+(select d.id from afarma.dominio d where d.nome = 'NÃO IDENTIFICADO' and d.tipo_id = (select t.id from afarma.tipodominio t where t.nome = 'PRINCIPIO ATIVO'))
+else pa.id end) as "principioativo_id",
+(case when gr.grupo_id isnull then 
+(select d.id from afarma.dominio d where d.nome = 'NÃO IDENTIFICADO' and d.tipo_id = (select t.id from afarma.tipodominio t where t.nome = 'GRUPO'))
+else gr.grupo_id end) , 
+(case when ci.max isnull then 
+'NÃO POSSUI'
+else ci.max end) as "contraindicacao", 
+(case when ic.max isnull then 
+'NÃO POSSUI'
+else ic.max end) as "indicacao", 
+(case when vm.avg isnull then 
+'0'
+else vm.avg end) as "precomedio"
 from 
-((select gr.nome_grupo as max , max(gr.ean) as ean from public.genericos_ref gr
-group by gr.nome_grupo
-)
+((select max(gr.name), gr.ean from public.genericos_ref gr
+group by gr.ean)
 union all
-(select pr.name, pr.ean from  public.product_ref pr where pr.ean in 
-(select pr.ean from product_ref pr except select distinct gr.ean from genericos_ref gr) and pr.ean != 'DIVERSOS'
- )) p
-left join 
+(select max(pr.name), pr.ean from  public.product_ref pr
+group by pr.ean)) p
+left join
 --principioativo
 ((select r.nome, r.ean, 
  max( case when dm.id isnull then (select d.id from afarma.dominio d where d.nome='NÃO IDENTIFICADO'
@@ -538,7 +567,7 @@ group by x.ean) y left join afarma.principioativo pa on y.principioativo_id=pa.i
 on r.descricao=dm.nome
 group by r.nome, r.ean)) pa
 on p.ean = pa.ean
-left join
+left join 
 --departamento
 ((select pr.name, pr.ean, max(dm.id) as "departamento_id"
 from public.product_ref pr, afarma.dominio dm, afarma.tipodominio t, afarma.produtocrawler p, afarma.departamento de
@@ -551,20 +580,20 @@ union all
 afarma.dominio dm, afarma.tipodominio t, afarma.produtocrawler p, afarma.departamento de
 where translate (UPPER(x.max),'áàâãäåaaaÁÂÃÄÅAAAÀéèêëeeeeeEEEÉEEÈìíîïìiiiÌÍÎÏÌIIIóôõöoooòÒÓÔÕÖOOOùúûüuuuuÙÚÛÜUUUUçÇñÑýÝ',
 'aaaaaaaaaAAAAAAAAAeeeeeeeeeEEEEEEEiiiiiiiiIIIIIIIIooooooooOOOOOOOOuuuuuuuuUUUUUUUUcCnNyY')=Upper(p.nome) 
-and p.departamento_id=dm.id --de.id and de.departamento=dm.nome and dm.tipo_id=t.id and t.nome='DEPARTAMENTO'
+and p.departamento_id=de.id and de.departamento=dm.nome and dm.tipo_id=t.id and t.nome='DEPARTAMENTO'
 group by x.max, x.ean)) dp
-on p.ean = dp.ean
+on dp.ean = p.ean
 left join
 --categoria
 ((select pr.name, pr.ean, d.id as "categoria_id"
 from public.product_ref pr, afarma.dominio d, afarma.tipodominio t 
-where unaccent(upper(pr.category))=d.nome and t.nome='CATEGORIA' and t.id=d.tipo_id and pr.ean!='DIVERSOS')
+where pr.category=d.nome and t.nome='CATEGORIA' and t.id=d.tipo_id and pr.ean!='DIVERSOS')
 union all
 (select  x.max, x.ean, d.id from 
 (select max(gr.name), gr.ean from public.genericos_ref gr group by gr.ean order by max(gr.name) asc) x,
 public.genericos_ref gr, afarma.tipodominio t, afarma.dominio d, public.product_ref pr, public.generico_grupo gg
-where x.max=gr.name and pr.grupo=cast(gg.grupo as varchar) and gg.grupo=gr.grupo and gg.nome=pr.name
-and unaccent(upper(pr.category))=d.nome and d.tipo_id=t.id and t.nome='CATEGORIA'
+where x.max=gr.name and pr.grupo= cast(gg.grupo as varchar) and gg.grupo=gr.grupo and gg.nome=pr.name
+and unaccent(upper(pr.category)) = d.nome and d.tipo_id=t.id and t.nome='CATEGORIA'
 group by x.max, x.ean, d.id)) ca
 on p.ean = ca.ean
 left join
@@ -608,8 +637,7 @@ public.genericos_ref gr, public.generico_grupo gg, afarma.tipodominio t, afarma.
 where gg.nome= d.nome and gr.name=x.max and gr.grupo=gg.grupo and t.id=d.tipo_id and t.nome='GRUPO'
 group by x.max, x.ean, d.id
 order by x.max asc)) gr
-on p.ean = gr.ean
-left join
+on gr.ean = p.ean left join
 --foto
 ((select pr.name, pr.ean, max(p.photo_id) as "photo_id" from afarma.produtocrawler p, public.product_ref pr 
 where translate (UPPER(pr.name),'áàâãäåaaaÁÂÃÄÅAAAÀéèêëeeeeeEEEÉEEÈìíîïìiiiÌÍÎÏÌIIIóôõöoooòÒÓÔÕÖOOOùúûüuuuuÙÚÛÜUUUUçÇñÑýÝ',
@@ -621,7 +649,7 @@ union all
 on translate (UPPER(x.max),'áàâãäåaaaÁÂÃÄÅAAAÀéèêëeeeeeEEEÉEEÈìíîïìiiiÌÍÎÏÌIIIóôõöoooòÒÓÔÕÖOOOùúûüuuuuÙÚÛÜUUUUçÇñÑýÝ',
 'aaaaaaaaaAAAAAAAAAeeeeeeeeeEEEEEEEiiiiiiiiIIIIIIIIooooooooOOOOOOOOuuuuuuuuUUUUUUUUcCnNyY') =p.nome
 group by x.max, x.ean)) ph
-on p.ean = ph.ean
+on ph.ean = p.ean
 left join
 --valormedio&menorpreco
 ((select pr.name, pr.ean, (case when avg(nullif(pc.valor,0)) isnull then 0 else  avg(nullif(pc.valor,0)) end) as "avg"
@@ -677,20 +705,16 @@ from (select max(gr.name), gr.ean from public.genericos_ref gr group by gr.ean) 
 where x.ean=gr.ean and gr.ean=pc.ean and gr.ean!='DIVERSOS'
 group by x.max, x.ean)) ic
 on p.ean = ic.ean
-where --gr.ean =p.ean and de.ean=p.ean and ca.ean=p.ean and ma.ean=p.ean and dp.ean=p.ean
---and pa.ean=p.ean and gr.ean=p.ean and ph.ean=p.ean and ic.ean=p.ean and ci.ean=p.ean and vm.ean=p.ean
---and 
+where 
 p.ean in (select p.ean from (((select distinct(gr.ean) from public.genericos_ref gr
 )
 union all
 (select distinct(pr.ean) from  public.product_ref pr where pr.grupo='NÃO POSSUI'
 ))
 except 
-(select distinct(p.ean) from afarma.produto p )
-) p )
-group by p.max, p.ean, 
---de.descricao, ca.categoria_id, ma.marca_id, dp.departamento_id, pa.id, gr.grupo_id, ph.photo_id,
-vm.avg--, ci.max, ic.max
+(select distinct(p.ean) from afarma.produto p )) p )
+group by p.max, p.ean, de.descricao, ca.categoria_id, ma.marca_id, dp.departamento_id, pa.id, gr.grupo_id, ph.photo_id,
+vm.avg, ci.max, ic.max
 order by p.max asc) re;
 
 --Produto_TSV
@@ -761,7 +785,6 @@ where vm.ean_vm=afarma.produto.ean;
 
  --Departamentos
  
-delete from afarma.produto_departamentos 
  
 insert into afarma.produto_departamentos select uuid_generate_v4(), pd.produto_id, pd.departamento_id
 from
@@ -1012,25 +1035,27 @@ where p.descricao='GENERICO' and p.photo_id!='01873bab-49a3-42c6-a69c-5deb235ed3
 where id=f.produto;
 
 update afarma.produto set photo_id=ph.photo from
-(select p.id as produto_id, '01873bab-49a3-42c6-a69c-5deb235ed38d' as photo from afarma.produto p
+(select p.id as produto_id, '69d460dc-c484-4cf6-b18b-3bd102acfd7a' as photo from afarma.produto p
 where p.photo_id in
 (select ph.id from 
 (
-select ph.id, p.pathimage, count(p.pathimage)
+select ph.id, p.photo, count(p.photo)
 from public.product p, afarma.photo ph, afarma.produto pr
-where p.pathimage = ph.path and pr.ean = p.ean 
-group by p.pathimage, ph.id
+where p.photo=ph.photo and pr.ean=p.ean 
+group by p.photo, ph.id
 having count(p.photo)>=3
 order by count(p.photo) desc
 ) ph)) ph
 where ph.produto_id=id;
 
+
+select p.photo from public.product p
+
 -- Atualizar photo crawler
 
 update afarma.produtocrawler set photo_id=f.photo_id from
 (select p.id as produto, p.nome, '01873bab-49a3-42c6-a69c-5deb235ed38d' as photo_id from afarma.produtocrawler p
-where p.ean in (select distinct(gr.ean) from public.genericos_ref gr)
-and p.photo_id!='01873bab-49a3-42c6-a69c-5deb235ed38d') f
+where p.ean in (select distinct(gr.ean) from public.genericos_ref gr) and p.photo_id !='01873bab-49a3-42c6-a69c-5deb235ed38d') f
 where id=f.produto;
 
 --Atualizar View
@@ -1240,13 +1265,19 @@ CREATE TYPE afarma.ctitemdetalhado AS (
 	valor numeric (10,5),
 	total numeric (10,5));
 
+CREATE TYPE afarma.cotacaotitem AS (
+	id varchar,
+	concorrente varchar,
+	cotacao_id varchar,
+	total numeric(10,2));
 
-CREATE OR REPLACE FUNCTION afarma.cotacaoiaidesconto(cotid character varying, descontoitem double precision)
- RETURNS SETOF afarma.ctitem
+
+CREATE OR REPLACE FUNCTION afarma.cotacaoiai(cotid character varying) --, descontoitem double precision
+ RETURNS SETOF afarma.cotacaotitem
  LANGUAGE plpgsql
 AS $function$
    DECLARE
-      itens afarma.ctitem%ROWTYPE;
+      itens afarma.cotacaotitem%ROWTYPE;
 BEGIN
 
  	FOR itens in
@@ -1257,8 +1288,8 @@ SELECT uuid_generate_v4()
 FROM (
 	(
 		SELECT i.concorrente
-			,i.cotacao
-			,sum(i.total) AS totalporloja
+			,i.cotacao as cotacao_id
+			,ROUND(CAST(sum(i.total) AS numeric),2) AS total 
 		FROM (
 			SELECT i.*
 				,(i.quantidade * i.valor) AS total
@@ -1362,7 +1393,7 @@ FROM (
 		FROM (
 			SELECT i.cotacao
 				,i.ean
-				,min(i.quantidade * (i.valor-(descontoitem))) AS total
+				,min(i.quantidade * (i.valor-(/*descontoitem*/ 1))) AS total
 			FROM (
 				SELECT i.concorrente
 					,i.cotacao
@@ -1474,7 +1505,7 @@ $function$
 --------------------------
 
 
-CREATE OR REPLACE FUNCTION afarma.cotacaoiaidetalhadodesconto(cotid character varying, descontoitem double precision)
+CREATE OR REPLACE FUNCTION afarma.cotacaoiaidetalhadodesconto(cotid character varying) --, descontoitem double precision
  RETURNS SETOF afarma.ctitemdetalhado
  LANGUAGE plpgsql
 AS $function$
@@ -1707,7 +1738,7 @@ FROM (
 		
 		(
 			SELECT i.*
-				,((i.precomedio-(descontoitem)) * i.quantidade)
+				,((i.precomedio-(/*descontoitem*/1)) * i.quantidade)
 			FROM (
 				SELECT 'aFarma' AS loja
 					,i.cotacao
@@ -1804,104 +1835,237 @@ $function$
 ;
 
 
+-- DROP TYPE afarma.ctitem;
+
+CREATE TYPE afarma.cotacaotitem AS (
+	id varchar,
+	concorrente varchar,
+	cotacao_id varchar,
+	total numeric(10,2));
 
 
-select * from afarma.detalhecotitem('7891317420833', 8)
---@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
---Trigger Tabelas Cotação
-
-
-CREATE OR REPLACE FUNCTION afarma.detalhecotitem(ean_cot character varying, quantidade double precision)
- RETURNS SETOF afarma.itemjson
+CREATE OR REPLACE FUNCTION afarma.cotacao(cotid character varying, desconto float, percentual float) --, descontoitem double precision
+ RETURNS SETOF afarma.cotacaotitem
  LANGUAGE plpgsql
 AS $function$
    DECLARE
-      resource_t itemjson%ROWTYPE;
+      itens afarma.cotacaotitem%ROWTYPE;
 BEGIN
 
- 	FOR resource_t in
+ 	FOR itens in
 
-SELECT uuid_generate_v4() as id1
-		,jsonb_build_object('detalheitem', array_agg(i.data)) AS data1
-	FROM ( 
-		SELECT row_to_json(i.*) AS data
+SELECT cast(uuid_generate_v4() as varchar) as id
+	,i.*
+FROM (
+	(
+		SELECT i.concorrente
+			,i.cotacao as cotacao_id
+			,ROUND(CAST(sum(i.total) AS numeric),2) AS total
 		FROM (
 			SELECT i.*
+				,(i.quantidade * i.valor) AS total
 			FROM (
-				SELECT i.*
-					,p.segundomenor
+				SELECT i.concorrente
+					,i.cotacao
+					,i.ean
+					,i.quantidade
+					,(
+						CASE 
+							WHEN i.valor isnull
+								THEN i.precomedio
+							WHEN i.valor < i.segundomenor * 0.20
+								THEN i.segundomenor
+							ELSE i.valor
+							END
+						) AS valor
 				FROM (
 					SELECT i.*
-						,po.precomedio
+						,p.segundomenor
 					FROM (
 						SELECT i.*
-							,nullif(pc.valor,0 ) as valor
-							,pc.url
+							,po.precomedio
 						FROM (
-							SELECT *
+							SELECT i.*
+								,pc.valor
 							FROM (
-								SELECT c.concorrente as loja
-									,c.id AS concorrente_id
-								FROM afarma.concorrentes_estados ce
-									,afarma.concorrente c
-								WHERE c.id = ce.concorrente_id
-								) c
-							CROSS JOIN (
-								SELECT i.cotacao
-									,(
-										CASE 
-											WHEN i.ean isnull
-												THEN ean_cot
-											ELSE i.ean
-											END
-										) AS ean
-									,i.quantidade
+								SELECT *
 								FROM (
-									SELECT afarma.menor_preco_grupo_crawler(ean_cot) AS ean
+									SELECT c.concorrente
+										,c.id AS concorrente_id
+									FROM afarma.concorrentes_estados ce
+										,afarma.concorrente c
+									WHERE c.id = ce.concorrente_id
+										AND ce.uf = (select r.uf from afarma.registrocotacao r where r.id = cotid)
+									) c
+								CROSS JOIN (
+									SELECT i.cotacao
 										,(
-											SELECT uuid_generate_v4()
-											) AS cotacao
-										,quantidade AS quantidade
+											CASE 
+												WHEN i.menor isnull
+													THEN i.ean
+												ELSE i.menor
+												END
+											) AS ean
+										,i.quantidade
+									FROM (
+										SELECT *
+										FROM (
+											SELECT i.ean
+												,i.cotacao
+												,i.quantidade
+											FROM afarma.itenscot i
+											WHERE i.cotacao = cotid
+											) i
+										CROSS JOIN lateral afarma.menor_preco_grupo_crawler(i.ean) AS menor
+										) i
 									) i
 								) i
+							LEFT JOIN afarma.produtoconcorrente pc ON pc.ean = i.ean
+								AND pc.concorrente_id = i.concorrente_id
 							) i
-						LEFT JOIN afarma.produtoconcorrente pc ON pc.ean = i.ean
-							AND pc.concorrente_id = i.concorrente_id
-						) i
-					LEFT JOIN (
-						SELECT pc.ean
-							,avg(nullif(pc.valor, 0)) AS precomedio
-						FROM afarma.produtoconcorrente pc
-						GROUP BY pc.ean
-						) po ON po.ean = i.ean
-					) i
-				LEFT JOIN (
-					SELECT p.ean
-						,min(p.valor) AS segundomenor
-					FROM (
-						SELECT pc.ean
-							,pc.valor
-							,p.min
-						FROM afarma.produtoconcorrente pc
 						LEFT JOIN (
 							SELECT pc.ean
-								,min(pc.valor)
+								,avg(nullif(pc.valor, 0)) AS precomedio
 							FROM afarma.produtoconcorrente pc
 							GROUP BY pc.ean
-							) p ON pc.ean = p.ean
-						) p
-					WHERE p.valor > p.min
-					GROUP BY p.ean
-					) p ON p.ean = i.ean
+							) po ON po.ean = i.ean
+						) i
+					LEFT JOIN (
+						SELECT p.ean
+							,min(p.valor) AS segundomenor
+						FROM (
+							SELECT pc.ean
+								,pc.valor
+								,p.min
+							FROM afarma.produtoconcorrente pc
+							LEFT JOIN (
+								SELECT pc.ean
+									,min(pc.valor)
+								FROM afarma.produtoconcorrente pc
+								GROUP BY pc.ean
+								) p ON pc.ean = p.ean
+							) p
+						WHERE p.valor > p.min
+						GROUP BY p.ean
+						) p ON p.ean = i.ean
+					) i
 				) i
 			) i
-		) i
-
-
- 	
-loop
-		RETURN NEXT resource_t;
+		GROUP BY i.concorrente
+			,i.cotacao
+		)
+	
+	UNION ALL
+	
+	(
+		SELECT 'aFarma'
+			,i.cotacao
+			,((min(i.totalporloja) - (coalesce(desconto, 0))) * ((100 - (cast(coalesce(percentual, 0) AS FLOAT))) / (100)))
+		FROM (
+			SELECT i.concorrente
+				,i.cotacao
+				,sum(i.total) AS totalporloja
+			FROM (
+				SELECT i.*
+					,(i.quantidade * i.valor) AS total
+				FROM (
+					SELECT i.concorrente
+						,i.cotacao
+						,i.ean
+						,i.quantidade
+						,(
+							CASE 
+								WHEN i.valor isnull
+									THEN i.precomedio
+								WHEN i.valor < i.segundomenor * 0.20
+									THEN i.segundomenor
+								ELSE i.valor
+								END
+							) AS valor
+					FROM (
+						SELECT i.*
+							,p.segundomenor
+						FROM (
+							SELECT i.*
+								,po.precomedio
+							FROM (
+								SELECT i.*
+									,pc.valor
+								FROM (
+									SELECT *
+									FROM (
+										SELECT c.concorrente
+											,c.id AS concorrente_id
+										FROM afarma.concorrentes_estados ce
+											,afarma.concorrente c
+										WHERE c.id = ce.concorrente_id
+											AND ce.uf = (select r.uf from afarma.registrocotacao r where r.id = cotid)
+										) c
+									CROSS JOIN (
+										SELECT i.cotacao
+											,(
+												CASE 
+													WHEN i.menor isnull
+														THEN i.ean
+													ELSE i.menor
+													END
+												) AS ean
+											,i.quantidade
+										FROM (
+											SELECT *
+											FROM (
+												SELECT i.ean
+													,i.cotacao
+													,i.quantidade
+												FROM afarma.itenscot i
+												WHERE i.cotacao = cotid
+												) i
+											CROSS JOIN lateral afarma.menor_preco_grupo_crawler(i.ean) AS menor
+											) i
+										) i
+									) i
+								LEFT JOIN afarma.produtoconcorrente pc ON pc.ean = i.ean
+									AND pc.concorrente_id = i.concorrente_id
+								) i
+							LEFT JOIN (
+								SELECT pc.ean
+									,avg(nullif(pc.valor, 0)) AS precomedio
+								FROM afarma.produtoconcorrente pc
+								GROUP BY pc.ean
+								) po ON po.ean = i.ean
+							) i
+						LEFT JOIN (
+							SELECT p.ean
+								,min(p.valor) AS segundomenor
+							FROM (
+								SELECT pc.ean
+									,pc.valor
+									,p.min
+								FROM afarma.produtoconcorrente pc
+								LEFT JOIN (
+									SELECT pc.ean
+										,min(pc.valor)
+									FROM afarma.produtoconcorrente pc
+									GROUP BY pc.ean
+									) p ON pc.ean = p.ean
+								) p
+							WHERE p.valor > p.min
+							GROUP BY p.ean
+							) p ON p.ean = i.ean
+						) i
+					) i
+				) i
+			GROUP BY i.concorrente
+				,i.cotacao
+			) i
+		GROUP BY i.cotacao
+		)
+	) i
+	
+	
+		loop
+		RETURN NEXT itens;
 	
    END LOOP;
   
@@ -1913,3 +2077,54 @@ END;
 $function$
 ;
 
+select * from afarma.cotacao(:id, :desconto, :percentual)
+--@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+--Trigger Tabelas Cotação
+
+
+
+
+-- public.crawler_schedule definition
+
+-- Drop table
+
+-- DROP TABLE public.crawler_schedule;
+
+CREATE TABLE public.crawler_schedule (
+	id uuid NOT NULL,
+	cron_scheduling varchar(255) NULL,
+	enabled bpchar(1) NULL,
+	"implementation" varchar(255) NULL,
+	"name" varchar(255) NULL,
+	start_url varchar(2000) NULL,
+	CONSTRAINT crawler_schedule_pkey PRIMARY KEY (id)
+);
+-- public.product definition
+
+-- Drop table
+
+-- DROP TABLE public.product;
+
+CREATE TABLE public.product (
+	id uuid NOT NULL,
+	active_ingredient varchar(10240) NULL,
+	brand varchar(10240) NULL,
+	category varchar(10240) NULL,
+	contraindication varchar(10240) NULL,
+	created_date timestamp NOT NULL,
+	department _text NULL,
+	description varchar(10240) NULL,
+	ean varchar(255) NULL,
+	"implementation" varchar(255) NOT NULL,
+	indication varchar(10240) NULL,
+	"name" varchar(2048) NOT NULL,
+	photo bytea NULL,
+	price float4 NOT NULL,
+	related_products _text NULL,
+	retencao_receita varchar(255) NULL,
+	updated_date timestamp NOT NULL,
+	url varchar(10240) NOT NULL,
+	CONSTRAINT product_pkey PRIMARY KEY (id),
+	CONSTRAINT ukojskdxmdefkuhlt9i0389ehl7 UNIQUE (ean, implementation)
+);
