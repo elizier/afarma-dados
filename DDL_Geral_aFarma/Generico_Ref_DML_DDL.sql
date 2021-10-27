@@ -3654,3 +3654,12 @@ insert into genericos_ref(grupo,name,ean,brand) values ('11188','ZOLPIDEM 10MG G
 insert into genericos_ref(grupo,name,ean,brand) values ('11189','ZOLPIDEM 10MG GENERICO SANDOZ 20 COMPRIMIDOS REVESTIDOS','7897595603456','');
 insert into genericos_ref(grupo,name,ean,brand) values ('11189','ZOLPIDEM 10MG GENERICO TEUTO 20 COMPRIMIDOS','7896112160366','');
 insert into genericos_ref(grupo,name,ean,brand) values ('11192','ZOLPIDEM 5MG EUROFARMA GENERICO 30 COMPRIMIDOS REVESTIDOS','7891317004606','');
+
+
+
+
+UPDATE genericos_ref SET nome_grupo = g.name
+FROM (select g.grupo as grupo_1, g.name from generico_grupo g) g
+WHERE grupo = g.grupo_1 and nome_grupo isnull;
+
+
