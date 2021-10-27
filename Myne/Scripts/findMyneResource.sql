@@ -6,6 +6,8 @@ AS $function$
       resource_t public.mynejsontype%ROWTYPE;
 BEGIN
 
+
+
  	FOR resource_t in
  	
 select cast(uuid_generate_v4() as varchar) as id, a.type, row_to_json(a.*) from (
