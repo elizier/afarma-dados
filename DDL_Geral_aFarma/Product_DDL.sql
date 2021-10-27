@@ -18,6 +18,7 @@ CREATE TABLE public.product (
 	indication varchar(10240) NULL,
 	name varchar(2048) NOT NULL,
 	photo bytea NULL,
+	pathimage varchar NULL,
 	price float4 NOT NULL,
 	related_products _text NULL,
 	retencao_receita varchar(255) NULL,
