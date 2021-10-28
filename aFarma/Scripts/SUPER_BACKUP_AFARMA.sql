@@ -95,6 +95,10 @@ FROM
 ;
 
 
+-- Atualizar PathImage
+
+UPDATE public.product set pathimage = concat('/',"implementation", '/img_',id,'.png') where pathimage isnull
+
 
 --Atualizar preço 2.0
 update public.product set price=p.preco, updated_date=p.date
@@ -161,7 +165,7 @@ FROM
 
 insert into afarma.categoria select uuid_generate_v4(), g.translate from 
 ((select distinct(translate (UPPER(p.category),'áàâãäåaaaÁÂÃÄÅAAAÀéèêëeeeeeEEEÉEEÈìíîïìiiiÌÍÎÏÌIIIóôõöoooòÒÓÔÕÖOOOùúûüuuuuÙÚÛÜUUUUçÇñÑıİ',
-'aaaaaaaaaAAAAAAAAAeeeeeeeeeEEEEEEEiiiiiiiiIIIIIIIIooooooooOOOOOOOOuuuuuuuuUUUUUUUUcCnNyY')) from public.product p)
+'aaaaaaaaaAAAAAAAAAeeeeeeeeeEEEEEEEiiiiiiiiIIIIIIIIooooooooOOOOOOOOuuuuuuuuUUUUUUUUcCnNyY')) from public.product p where p.category notnull)
 except
 (select g.categoria from afarma.categoria g)) g;
 
@@ -170,7 +174,7 @@ except
 
 insert into afarma.marca select uuid_generate_v4(), m.translate from 
 ((select distinct(translate (UPPER(p.brand),'áàâãäåaaaÁÂÃÄÅAAAÀéèêëeeeeeEEEÉEEÈìíîïìiiiÌÍÎÏÌIIIóôõöoooòÒÓÔÕÖOOOùúûüuuuuÙÚÛÜUUUUçÇñÑıİ',
-'aaaaaaaaaAAAAAAAAAeeeeeeeeeEEEEEEEiiiiiiiiIIIIIIIIooooooooOOOOOOOOuuuuuuuuUUUUUUUUcCnNyY')) from public.product p )
+'aaaaaaaaaAAAAAAAAAeeeeeeeeeEEEEEEEiiiiiiiiIIIIIIIIooooooooOOOOOOOOuuuuuuuuUUUUUUUUcCnNyY')) from public.product p where p.brand notnull)
 except
 (select m.marca from afarma.marca m)) m;
 
@@ -179,22 +183,33 @@ except
 
 CREATE TABLE afarma.departamento_xpto (
 	id varchar NOT NULL DEFAULT uuid_generate_v4(),
-	departamento varchar(36) NULL
+	departamento varchar(10240) NULL
 );
 
 
 CREATE TABLE afarma.departamento_de_para (
 	id varchar NOT NULL DEFAULT uuid_generate_v4(),
 	departamento_id varchar(36) NULL,
-	departamento varchar(255) null,
+	departamento varchar(10240) null,
 	departamento_xpto_id varchar(36) null,
-	departamento_xpto varchar(255) null
+	departamento_xpto varchar(10240) null
+);
+
+CREATE TABLE afarma.produto_departamentos (
+id varchar NOT NULL DEFAULT uuid_generate_v4(),
+produto_id varchar(10240) null,
+	departamento_id varchar(10240) NULL
 );
 
 
+
+
 insert into afarma.departamento_xpto select uuid_generate_v4(), d.translate from
-((select distinct(translate(translate(Upper(CAST(p.department AS varchar)), '{}"',''),'áàâãäåaaaÁÂÃÄÅAAAÀéèêëeeeeeEEEÉEEÈìíîïìiiiÌÍÎÏÌIIIóôõöoooòÒÓÔÕÖOOOùúûüuuuuÙÚÛÜUUUUçÇñÑıİ',
+(((select distinct(translate(translate(Upper(CAST(p.department AS varchar)), '{}"',''),'áàâãäåaaaÁÂÃÄÅAAAÀéèêëeeeeeEEEÉEEÈìíîïìiiiÌÍÎÏÌIIIóôõöoooòÒÓÔÕÖOOOùúûüuuuuÙÚÛÜUUUUçÇñÑıİ',
 'aaaaaaaaaAAAAAAAAAeeeeeeeeeEEEEEEEiiiiiiiiIIIIIIIIooooooooOOOOOOOOuuuuuuuuUUUUUUUUcCnNyY')) from public.product p)
+union all
+(select distinct(translate (UPPER(p.category),'áàâãäåaaaÁÂÃÄÅAAAÀéèêëeeeeeEEEÉEEÈìíîïìiiiÌÍÎÏÌIIIóôõöoooòÒÓÔÕÖOOOùúûüuuuuÙÚÛÜUUUUçÇñÑıİ',
+'aaaaaaaaaAAAAAAAAAeeeeeeeeeEEEEEEEiiiiiiiiIIIIIIIIooooooooOOOOOOOOuuuuuuuuUUUUUUUUcCnNyY')) from public.product p where p.category notnull))
 except
 (select d.departamento from afarma.departamento_xpto d)) d;
 
@@ -208,7 +223,7 @@ WHERE
     departamento_xpto = y.departamento;
 
 insert into afarma.departamento_de_para select z.id_nao_identificado, z.dep_nao_identificado, z.id, z.departamento from 
-(select 'e4559d0f-3898-4a32-a423-fc7a95e50d75' as "id_nao_identificado", 'NÃO IDENTIFICADO' as "dep_nao_identificado",s.id , s.departamento
+(select (select id from afarma.departamento where departamento = 'NÃO IDENTIFICADO') as "id_nao_identificado", 'NÃO IDENTIFICADO' as "dep_nao_identificado",s.id , s.departamento
 from (select d.departamento_xpto, x.departamento, x.id
 from afarma.departamento_de_para d
 right join afarma.departamento_xpto x on d.departamento_xpto=x.departamento where d.departamento_xpto isnull) s, afarma.departamento_xpto t, afarma.departamento p
@@ -219,14 +234,20 @@ group by s.id , s.departamento) z;
 --FOTO
 
 insert into afarma.photo select uuid_generate_v4() , p.pathimage 
-from 
-((select distinct(p.pathimage ) from public.product p)
+from
+(select * from
+(((select distinct(p.pathimage ) from public.product p)
+union all
+(select case when 
+(select p.id from afarma.photo p where p.path = '/aFarma/img.png') isnull then '/aFarma/img.png' else (SELECT NULL LIMIT 0) end))
 except
-(select p.pathimage  from afarma.photo p)) p;
+(select p.path  from afarma.photo p)
+) p 
+where p.pathimage notnull) p;
 
-update public.product set pathimage = p.newpath  from
-(select p.id as id1, p."implementation", p.pathimage, concat('/',p."implementation",'/img_',p.id,'.png') as newpath  from public.product p) p
-where id = p.id1
+--update public.product set pathimage = p.newpath  from
+--(select p.id as id1, p."implementation", p.pathimage, concat('/',p."implementation",'/img_',p.id,'.png') as newpath  from public.product p) p
+--where id = p.id1
 
 
 
