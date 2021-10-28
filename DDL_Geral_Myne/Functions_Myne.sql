@@ -1,3 +1,11 @@
+-- Agregate tsvector
+
+CREATE AGGREGATE tsvector_agg(tsvector) (
+   STYPE = pg_catalog.tsvector,
+   SFUNC = pg_catalog.tsvector_concat,
+   INITCOND = ''
+);
+
 
 
 CREATE OR REPLACE FUNCTION public.finddata(resource character varying)
