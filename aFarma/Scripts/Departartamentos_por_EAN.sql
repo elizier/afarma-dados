@@ -5,10 +5,16 @@ select pd.produto_id, pd.departamento, pd.departamento_id from
 
 --Departamentos por EAN
 
-select d.ean, d.departamento 
+insert into afarma.departamento_de_para (id, departamento_id, departamento, departamento_xpto_id, departamento_xpto) 
+select uuid_generate_v4(), d.departamento_id, d.departamento, d.departamento_xpto_id, d.departamento_xpto from
+(select d.*, dx.id as departamento_xpto_id, dp.id as departamento_id from
+(select min(d.departamento) as departamento, d.departamento_xpto from
+(
+select * from 
+(select d.departamento, dp.id as departamento_id, dx.id as departamento_xpto_id, dx.departamento as departamento_xpto
 			from
 (
-select p.ean, unaccent(upper(translate(Upper(CAST(p.department AS varchar)), '{}"',''))) as xpto , 
+select p.ean, unaccent(upper(p.category)) as category , unaccent(upper(translate(Upper(CAST(p.department AS varchar)), '{}"',''))) as xpto , 
 (case when d.departamento isnull 
 then 'NÃO IDENTIFICADO' else d.departamento end) 
 	 from 
@@ -194,12 +200,21 @@ where d.translate in (select d.departamento from afarma.departamento d)
 group by d.ean, d.departamento, d.translate) d
 right join 
 public.product p on p.ean = d.ean) d
-group by d.ean, d.departamento 
+left join 
+afarma.departamento_xpto dx 
+on (dx.departamento = d.category or dx.departamento = d.xpto)
+left join afarma.departamento dp
+on d.departamento = dp.departamento) d
+group by d.departamento, d.departamento_id, d.departamento_xpto_id, d.departamento_xpto
+) d
+where d.departamento_xpto_id notnull
+group by d.departamento_xpto) d, afarma.departamento dp, afarma.departamento_xpto dx
+where dx.departamento = d.departamento_xpto and d.departamento = dp.departamento ) d
 
 
 
 
-
+------------------------------------------------------------
 where p.ean=d.ean and d.translate=dp.departamento 
 ) pd 
 where pd.produto_id in 
