@@ -181,6 +181,18 @@ except
 
 --DEPARTAMENTOS
 
+
+
+
+
+
+
+
+
+
+
+
+
 CREATE TABLE afarma.departamento_xpto (
 	id varchar NOT NULL DEFAULT uuid_generate_v4(),
 	departamento varchar(10240) NULL
@@ -222,13 +234,14 @@ FROM (
 WHERE 
     departamento_xpto = y.departamento;
 
-insert into afarma.departamento_de_para select z.id_nao_identificado, z.dep_nao_identificado, z.id, z.departamento from 
+insert into afarma.departamento_de_para select uuid_generate_v4(), z.id_nao_identificado, z.dep_nao_identificado, z.id, z.departamento from 
 (select (select id from afarma.departamento where departamento = 'NÃO IDENTIFICADO') as "id_nao_identificado", 'NÃO IDENTIFICADO' as "dep_nao_identificado",s.id , s.departamento
 from (select d.departamento_xpto, x.departamento, x.id
 from afarma.departamento_de_para d
 right join afarma.departamento_xpto x on d.departamento_xpto=x.departamento where d.departamento_xpto isnull) s, afarma.departamento_xpto t, afarma.departamento p
 where s.departamento_xpto isnull
 group by s.id , s.departamento) z;
+
 
 
 --FOTO
@@ -276,7 +289,7 @@ m.nome,
 cast(m.photo as varchar),
 m.categoria,
 m.marca,
-m.departamento,
+(case when m.departamento isnull then '5486bfbf-7474-459d-8922-194c0fdcfe88' else m.departamento end) as departamento,
 n.principioativo
 from  (select
 translate (UPPER(p.contraindication),'áàâãäåaaaÁÂÃÄÅAAAÀéèêëeeeeeEEEÉEEÈìíîïìiiiÌÍÎÏÌIIIóôõöoooòÒÓÔÕÖOOOùúûüuuuuÙÚÛÜUUUUçÇñÑýÝ',
@@ -315,7 +328,7 @@ dx.departamento=dp.departamento_xpto
 and 
 dp.departamento_afarma_id=d.id 
 and
-f.pathimage = p.pathimage
+f.path = p.pathimage
 and 
 translate (UPPER(p.name),'áàâãäåaaaÁÂÃÄÅAAAÀéèêëeeeeeEEEÉEEÈìíîïìiiiÌÍÎÏÌIIIóôõöoooòÒÓÔÕÖOOOùúûüuuuuÙÚÛÜUUUUçÇñÑýÝ',
 'aaaaaaaaaAAAAAAAAAeeeeeeeeeEEEEEEEiiiiiiiiIIIIIIIIooooooooOOOOOOOOuuuuuuuuUUUUUUUUcCnNyY') in 
@@ -392,7 +405,7 @@ translate(UPPER(p.implementation),'áàâãäåaaaÁÂÃÄÅAAAÀéèêëeeeeeEEEÉEEÈìíîïìiiiÌÍÎ
 'aaaaaaaaaAAAAAAAAAeeeeeeeeeEEEEEEEiiiiiiiiIIIIIIIIooooooooOOOOOOOOuuuuuuuuUUUUUUUUcCnNyY') = c.concorrente 
 and translate(UPPER(p.name),'áàâãäåaaaÁÂÃÄÅAAAÀéèêëeeeeeEEEÉEEÈìíîïìiiiÌÍÎÏÌIIIóôõöoooòÒÓÔÕÖOOOùúûüuuuuÙÚÛÜUUUUçÇñÑýÝ',
 'aaaaaaaaaAAAAAAAAAeeeeeeeeeEEEEEEEiiiiiiiiIIIIIIIIooooooooOOOOOOOOuuuuuuuuUUUUUUUUcCnNyY') =k.nome
-and f.id=k.photo_id and f.pathimage = p.pathimage
+and f.id=k.photo_id and f.path = p.pathimage
 and 
 p.ean in
 ((select translate (UPPER(p.ean),'áàâãäåaaaÁÂÃÄÅAAAÀéèêëeeeeeEEEÉEEÈìíîïìiiiÌÍÎÏÌIIIóôõöoooòÒÓÔÕÖOOOùúûüuuuuÙÚÛÜUUUUçÇñÑýÝ',
@@ -491,7 +504,7 @@ where v.ean_price=ean and v.implementation=concorrente;
 
 insert into afarma.dominio select uuid_generate_v4(), pa.nome, pa.tipo_id from
 ((select distinct(p.active_ingredient) as "nome",
-'60f5eb50-bcd5-4cf3-833f-e7cc243cc02c'
+(select id from afarma.tipodominio where nome = 'PRINCIPIO ATIVO')
 as "tipo_id"
 from product p where p.active_ingredient!='')
 except 
@@ -501,7 +514,7 @@ except
 
 insert into afarma.dominio select uuid_generate_v4(), m.marca, m.tipo_id from
 ((select distinct(m.marca) as "marca",
-'4c65f533-cd56-4ea7-939d-066d5d88ad2d'
+(select id from afarma.tipodominio where nome = 'MARCA')
 as "tipo_id"
 from afarma.marca m where m.marca!='')
 except 
@@ -511,7 +524,7 @@ except
 
 insert into afarma.dominio select uuid_generate_v4(), c.categoria, c.tipo_id from
 ((select distinct(g.categoria),
-'f8db5ab4-cf16-4ca6-8183-183f35ae28f3'
+(select id from afarma.tipodominio where nome = 'CATEGORIA')
 as "tipo_id"
 from afarma.categoria g where g.categoria!='')
 except 
@@ -529,7 +542,12 @@ insert into afarma.dominio select uuid_generate_v4(), g.nome, (select t.id from 
 from
 (select distinct(gg.nome) from generico_grupo gg) g
 
+--Departamento
 
+insert into afarma.dominio select d.id , d.departamento , (select id from afarma.tipodominio where nome = 'DEPARTAMENTO') from
+(select d.id, d.departamento from afarma.departamento d
+except
+select d.id, d.nome from afarma.dominio d where d.tipo_id = (select id from afarma.tipodominio where nome = 'DEPARTAMENTO')) d
 
 --Produto
 
@@ -546,7 +564,7 @@ else ca.categoria_id end),
 (select d.id from afarma.dominio d where d.nome = 'NÃO IDENTIFICADO' and d.tipo_id = (select t.id from afarma.tipodominio t where t.nome = 'MARCA'))
 else ma.marca_id end) ,
 (case when ph.photo_id isnull then 
-'01873bab-49a3-42c6-a69c-5deb235ed38d'
+(select p.id from afarma.photo p where p.path = '/aFarma/img.png')
 else ph.photo_id end),
 (case when dp.departamento_id isnull then 
 (select d.id from afarma.dominio d where d.nome = 'NÃO IDENTIFICADO' and d.tipo_id = (select t.id from afarma.tipodominio t where t.nome = 'DEPARTAMENTO'))
@@ -790,8 +808,9 @@ where p.categoria_id=d.id or p.departamento_id=d.id or p.grupo_id=d.id or p.marc
  on d.id = b.grupo_id  
  ) b
  group by b.nome_produto, b.ean, b.categoria_id, b.marca_id,
-  b.departamento_id, b.principioativo_id, b.grupo_id, b.categoria, b.marca, b.departamento, b.principioativo, b.grupo ) b
-  where b.ean_tsv=ean;
+ b.departamento_id, b.principioativo_id, b.grupo_id, b.categoria, b.marca, b.departamento, b.principioativo, b.grupo ) b
+ where b.ean_tsv=ean
+ ;
  
  --Atualizar valor médio de Produto
 
@@ -1057,32 +1076,32 @@ except
 --Atualizar fotos
 
 update afarma.produto set photo_id=f.photo_id from
-(select p.id as produto, p.nome, '01873bab-49a3-42c6-a69c-5deb235ed38d' as photo_id from afarma.produto p
-where p.descricao='GENERICO' and p.photo_id!='01873bab-49a3-42c6-a69c-5deb235ed38d') f
+(select p.id as produto, p.nome, (select p.id from afarma.photo p where p.path = '/aFarma/img.png') as photo_id from afarma.produto p
+where p.descricao='GENERICO' and p.photo_id!=(select p.id from afarma.photo p where p.path = '/aFarma/img.png')) f
 where id=f.produto;
 
 update afarma.produto set photo_id=ph.photo from
-(select p.id as produto_id, '69d460dc-c484-4cf6-b18b-3bd102acfd7a' as photo from afarma.produto p
+(select p.id as produto_id, (select p.id from afarma.photo p where p.path = '/aFarma/img.png') as photo from afarma.produto p
 where p.photo_id in
 (select ph.id from 
 (
-select ph.id, p.photo, count(p.photo)
+select ph.id, p.pathimage, count(p.photo)
 from public.product p, afarma.photo ph, afarma.produto pr
-where p.photo=ph.photo and pr.ean=p.ean 
-group by p.photo, ph.id
-having count(p.photo)>=3
-order by count(p.photo) desc
+where p.pathimage=ph.path and pr.ean=p.ean 
+group by p.pathimage, ph.id
+having count(p.pathimage)>=3
+order by count(p.pathimage) desc
 ) ph)) ph
 where ph.produto_id=id;
 
 
-select p.photo from public.product p
-
 -- Atualizar photo crawler
 
 update afarma.produtocrawler set photo_id=f.photo_id from
-(select p.id as produto, p.nome, '01873bab-49a3-42c6-a69c-5deb235ed38d' as photo_id from afarma.produtocrawler p
-where p.ean in (select distinct(gr.ean) from public.genericos_ref gr) and p.photo_id !='01873bab-49a3-42c6-a69c-5deb235ed38d') f
+(select p.id as produto, p.nome, (select p.id from afarma.photo p where p.path = '/aFarma/img.png')
+as photo_id from afarma.produtocrawler p
+where p.ean in (select distinct(gr.ean) from public.genericos_ref gr) and p.photo_id !=
+(select p.id from afarma.photo p where p.path = '/aFarma/img.png')) f
 where id=f.produto;
 
 --Atualizar View
