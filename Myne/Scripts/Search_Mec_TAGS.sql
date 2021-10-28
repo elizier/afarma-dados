@@ -173,6 +173,35 @@ CREATE AGGREGATE tsvector_agg(tsvector) (
 
 
 
+
+
+{"resource_id":"61707c79-4381-4ab5-bac0-1bf6a908eab7","id":"bb52c338-fc7a-4d10-b630-61fadd5bd31c","tsvector_agg":"'matheus':2 'matheust':1 'test':3","similarity":0.53333336}
+
+
+
+(select replace(m.mri,'mri::','') as resource_id, 
+t.id, tsvector_agg(t.tag_tsv), similarity(lower(unaccent(STRING_AGG(t.tag, ' '))), lower(unaccent(:myne_search)))
+from tag t, myneresourceinformation m, resourcetag r 
+where 
+ m.id = r.resource and r.tag = t.id and 
+t.tag_tsv @@
+to_tsquery('portuguese',(select replace(unaccent(trim(:myne_search)),' ',' | ')))
+and m.type = 'PRODUCT'
+group by t.id , m.mri
+order by similarity desc
+limit coalesce(:itens_by_page, 5)
+offset coalesce(:page, 0) * coalesce(:itens_by_page, 5)) p
+
+
+
+
+
+
+
+
+
+
+
 select to_tsvector('portuguese', unaccent('"cachorro", "gato", "papagaio"'))
 
 
