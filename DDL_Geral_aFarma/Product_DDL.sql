@@ -27,3 +27,12 @@ CREATE TABLE public.product (
 	CONSTRAINT product_pkey PRIMARY KEY (id),
 	CONSTRAINT ukojskdxmdefkuhlt9i0389ehl7 UNIQUE (ean, implementation)
 );
+
+
+
+
+
+
+
+	
+
