@@ -2595,6 +2595,17 @@ $function$
 ALTER FUNCTION public.myneresearch(varchar,varchar) OWNER TO postgres;
 GRANT ALL ON FUNCTION public.myneresearch(varchar,varchar) TO postgres;
 
+
+-- Agregate tsvector
+
+CREATE AGGREGATE tsvector_agg(tsvector) (
+   STYPE = pg_catalog.tsvector,
+   SFUNC = pg_catalog.tsvector_concat,
+   INITCOND = ''
+);
+
+
+
 CREATE OR REPLACE FUNCTION public.myneresearch(research character varying, research_type character varying, itens_by_page integer, page integer)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
