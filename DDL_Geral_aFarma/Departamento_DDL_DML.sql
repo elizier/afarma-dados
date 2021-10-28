@@ -15,9 +15,10 @@ CREATE TABLE afarma.departamento (
 INSERT INTO afarma.departamento
 (id, backgroundcolor, departamento, image)
 VALUES
-	(uuid_generate_v4(), '', 'BELEZA', ?),
-	(uuid_generate_v4(), '', 'HIGIENE E CUIDADOS PESSOAIS', ?),
-	(uuid_generate_v4(), '', 'SAUDE E BEM ESTAR', ?),
-	(uuid_generate_v4(), '', 'DERMOCOSMETICOS', ?),
-	(uuid_generate_v4(), '', 'MEDICAMENTOS', ?),
-	(uuid_generate_v4(), '', 'MUNDO INFANTIL', ?);
+	(uuid_generate_v4(), '', 'BELEZA', null),
+	(uuid_generate_v4(), '', 'HIGIENE E CUIDADOS PESSOAIS', null),
+	(uuid_generate_v4(), '', 'SAUDE E BEM ESTAR', null),
+	(uuid_generate_v4(), '', 'DERMOCOSMETICOS', null),
+	(uuid_generate_v4(), '', 'MEDICAMENTOS', null),
+	(uuid_generate_v4(), '', 'MUNDO INFANTIL', null),
+	(uuid_generate_v4(), '', 'NÃO IDENTIFICADO', null);
