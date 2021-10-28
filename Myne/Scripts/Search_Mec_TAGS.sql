@@ -206,12 +206,100 @@ select to_tsvector('portuguese', unaccent('"cachorro", "gato", "papagaio"'))
 
 
 
+ 	select f.* from
+	(select replace(m.mri, 'mri::', '') as resource_id, m."type"
+	from myneresourceinformation m 
+	where (m."type" = 'POST' or m."type" = 'USER' or m."type" = 'PRODUCT')
+	order by resource_id asc
+	limit coalesce(:itens_by_page, 5)
+	offset coalesce(:page, 0) * coalesce(:itens_by_page, 5)) r
+	cross join lateral findresourcebyowner(r.resource_id) as f
+	
+	
+		select * from 
+	(SELECT to_jsonb(r.data) as data FROM tag t
+	CROSS JOIN lateral public.myneresearch(t.tag, NULL, :itens_by_page, :page ) AS r) r 
+	group by r.data
+
+
+select findmynefeed('080c7364-d2fc-429b-9f98-23bad310a960',5,0)
+
+CREATE OR REPLACE FUNCTION public.myneresearchfeed(itens_by_page integer, page integer)
+ RETURNS SETOF mynejsontype
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.mynejsontype%ROWTYPE;
+begin
+	
+select * from 
+(
+select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json( r.data) as data from 
+(select jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
+from
+(select r.owner,  array_agg(ro.data), r.data_post, r.data as data_slave from
+(select r.owner, r.data_post, jsonb_build_object('nested', array_agg(r.data_slave)) as data from
+(select rd.owner, jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
+jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave from
+(select replace(m.mri,'mri::','') as resource_id 
+from myneresourceinformation m
+where 
+ m.type = 'POST'
+ order by random()
+limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+) m
+cross join lateral findresourcedata(m.resource_id) as rd
+cross join lateral findresourcebyowner(m.resource_id) as ro) r 
+group by r.owner, r.data_post) r
+left join lateral findresourcebyowner(r.owner) ro on true
+where ro.type = 'PROFILE_IMAGE' or ro.type isnull
+group by r.owner, r.data_post, r.data) r 
+cross join lateral findresourcedata(r.owner) as ro) r
+
+union all
+
+select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json(r.data) as data from
+(select jsonb_build_object('type', rd.type) || jsonb(rd.data)|| jsonb_build_object('profile_image', ro.data) as data from
+(select replace(m.mri,'mri::','') as resource_id 
+from myneresourceinformation m
+where 
+ m.type = 'USER'
+ order by random()
+limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+) m
+cross join lateral findresourcedata(m.resource_id) as rd
+LEFT   JOIN LATERAL findresourcebyowner(m.resource_id) ro ON true
+where ro.type isnull or ro.type = 'PROFILE_IMAGE') r
+) r
+order by random()
+
+
+loop
+		RETURN NEXT resource_t;
+	
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
 
 
 
+select public.myneresearchfeed(5,0)
+
+select ceil( 
+:itens_by_page *
+(cast( (select count(*) from myneresourceinformation m where m."type" ='USER') as float)/
+cast( (select count(*) from myneresourceinformation m where m."type" ='POST') as float)))
 
 
-CREATE OR REPLACE FUNCTION public.myneresearchfeed(research character varying, research_type character varying, itens_by_page integer, page integer)
+CREATE OR REPLACE FUNCTION public.myneresearchfeed(itens_by_page integer, page integer)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
 AS $function$
@@ -219,5 +307,73 @@ AS $function$
       resource_t public.mynejsontype%ROWTYPE;
 BEGIN
 
+ 	FOR resource_t in
+ 	
+select * from 
+(
+select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json( r.data) as data from 
+(select jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
+from
+(select r.owner,  array_agg(ro.data), r.data_post, r.data as data_slave from
+(select r.owner, r.data_post, jsonb_build_object('nested', array_agg(r.data_slave)) as data from
+(select rd.owner, jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
+jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave from
+(select replace(m.mri,'mri::','') as resource_id 
+from myneresourceinformation m
+where 
+ m.type = 'POST'
+ order by random()
+limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+) m
+cross join lateral findresourcedata(m.resource_id) as rd
+cross join lateral findresourcebyowner(m.resource_id) as ro) r 
+group by r.owner, r.data_post) r
+left join lateral findresourcebyowner(r.owner) ro on true
+where ro.type = 'PROFILE_IMAGE' or ro.type isnull
+group by r.owner, r.data_post, r.data) r 
+cross join lateral findresourcedata(r.owner) as ro) r
+
+union all
+
+select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json(r.data) as data from
+(select jsonb_build_object('type', rd.type) || jsonb(rd.data)|| jsonb_build_object('profile_image', ro.data) as data from
+(select replace(m.mri,'mri::','') as resource_id 
+from myneresourceinformation m
+where 
+ m.type = 'USER'
+ order by random()
+limit coalesce(
+ceil( 
+itens_by_page *
+(cast( (select count(*) from myneresourceinformation m where m."type" ='USER') as float)/
+cast( (select count(*) from myneresourceinformation m where m."type" ='POST') as float)))
+, 5)
+offset coalesce(page, 0) * coalesce(
+ceil( 
+itens_by_page *
+(cast( (select count(*) from myneresourceinformation m where m."type" ='USER') as float)/
+cast( (select count(*) from myneresourceinformation m where m."type" ='POST') as float)))
+, 5)
+) m
+cross join lateral findresourcedata(m.resource_id) as rd
+LEFT   JOIN LATERAL findresourcebyowner(m.resource_id) ro ON true
+where ro.type isnull or ro.type = 'PROFILE_IMAGE') r
+) r
+order by random()
+
+
+loop
+		RETURN NEXT resource_t;
 	
-	public.myneresearch()
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
+
+
