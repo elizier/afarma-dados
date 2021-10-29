@@ -1317,6 +1317,17 @@ CREATE TYPE afarma.cotacaotitem AS (
 	cotacao_id varchar,
 	total numeric(10,2));
 
+CREATE TYPE afarma.ctitemdetalhadoNOVO AS (
+	id varchar,
+	nome varchar,
+	concorrente varchar,
+	cotacao_id varchar,
+	ean varchar,
+	quantidade int4,
+	url varchar,
+	valor numeric(10,5),
+	total numeric(10,5));
+
 
 CREATE OR REPLACE FUNCTION afarma.cotacaoiai(cotid character varying) --, descontoitem double precision
  RETURNS SETOF afarma.cotacaotitem
