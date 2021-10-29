@@ -2972,6 +2972,71 @@ end;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.findownerdata(resource character varying)
+ RETURNS SETOF jsonresultowner
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.jsonresultowner%ROWTYPE;
+    mri_id character varying;
+BEGIN
+mri_id := replace(resource,'mri::','');
+   
+
+
+ 	FOR resource_t in
+
+	
+select o.* from findresourcedata(mri_id) f
+cross join lateral findresourcedata(f.owner) as o
+ 
+loop
+		RETURN NEXT resource_t;
+	
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
+
+
+CREATE OR REPLACE FUNCTION public.findownerresource(resource character varying)
+ RETURNS SETOF jsonresultowner
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.jsonresultowner%ROWTYPE;
+BEGIN
+
+ 	FOR resource_t in
+
+select f.owner as slave, f.type, f.id, f.data from 
+(
+select replace(m.mri,'mri::','') as mri, replace(mr.mri,'mri::','') as owner, m.type from public.myneresourceinformation m 
+left join ownerresources o on o.slave = m.id
+left join myneresourceinformation mr on o.owner=mr.id
+group by  m.mri, mr.mri, m.type) m
+cross join lateral public.findresourcebyowner(m.owner) as f
+where m.owner notnull and m.mri = replace(resource,'mri::','') --and f.owner = m.owner
+ 
+loop
+		RETURN NEXT resource_t;
+	
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
+
+
 CREATE OR REPLACE FUNCTION public.set_limit(real)
  RETURNS real
  LANGUAGE c
