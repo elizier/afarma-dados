@@ -1164,7 +1164,7 @@ BEGIN
 
      
 UPDATE
-    public.usuario 
+    afarma.usuario 
 SET
     codigoind=ci.concat
 FROM
@@ -1195,7 +1195,7 @@ LANGUAGE 'plpgsql';
 
   AFTER INSERT
 
-  ON public.usuario
+  ON afarma.usuario
 
   FOR EACH ROW
 
@@ -1551,7 +1551,7 @@ $function$
 --------------------------
 
 
-CREATE OR REPLACE FUNCTION afarma.cotacaoiaidetalhadodesconto(cotid character varying) --, descontoitem double precision
+CREATE OR REPLACE FUNCTION afarma.cotacaoiaidetalhado(cotid character varying) --, descontoitem double precision
  RETURNS SETOF afarma.ctitemdetalhado
  LANGUAGE plpgsql
 AS $function$
