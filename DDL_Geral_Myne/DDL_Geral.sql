@@ -2,6 +2,123 @@
 
 CREATE SCHEMA public AUTHORIZATION postgres;
 
+
+-- Agregate tsvector
+
+CREATE AGGREGATE tsvector_agg(tsvector) (
+   STYPE = pg_catalog.tsvector,
+   SFUNC = pg_catalog.tsvector_concat,
+   INITCOND = ''
+);
+
+
+
+
+CREATE OR REPLACE FUNCTION public.uuid_generate_v1()
+ RETURNS uuid
+ LANGUAGE c
+ PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_generate_v1$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_generate_v1mc()
+ RETURNS uuid
+ LANGUAGE c
+ PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_generate_v1mc$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_generate_v3(namespace uuid, name text)
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_generate_v3$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_generate_v4()
+ RETURNS uuid
+ LANGUAGE c
+ PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_generate_v4$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_generate_v5(namespace uuid, name text)
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_generate_v5$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_nil()
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_nil$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_ns_dns()
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_ns_dns$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_ns_oid()
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_ns_oid$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_ns_url()
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_ns_url$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_ns_x500()
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_ns_x500$function$
+;
+
+CREATE OR REPLACE FUNCTION public.word_similarity(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity$function$
+;
+
+CREATE OR REPLACE FUNCTION public.word_similarity_commutator_op(text, text)
+ RETURNS boolean
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity_commutator_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.word_similarity_dist_commutator_op(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity_dist_commutator_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.word_similarity_dist_op(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity_dist_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.word_similarity_op(text, text)
+ RETURNS boolean
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity_op$function$
+;
+
 -- DROP TYPE gtrgm;
 
 CREATE TYPE gtrgm (
@@ -20,11 +137,6 @@ CREATE TYPE gtrgm (
 CREATE TABLE public."_exec" (
 	"_" text NULL
 );
-
--- Permissions
-
-ALTER TABLE public."_exec" OWNER TO postgres;
-GRANT ALL ON TABLE public."_exec" TO postgres;
 
 
 -- public.address definition
@@ -49,11 +161,6 @@ CREATE TABLE public.address (
 	CONSTRAINT address_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.address OWNER TO postgres;
-GRANT ALL ON TABLE public.address TO postgres;
-
 
 -- public.card definition
 
@@ -69,11 +176,6 @@ CREATE TABLE public.card (
 	CONSTRAINT card_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.card OWNER TO postgres;
-GRANT ALL ON TABLE public.card TO postgres;
-
 
 -- public.cardview definition
 
@@ -86,11 +188,6 @@ CREATE TABLE public.cardview (
 	CONSTRAINT cardview_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.cardview OWNER TO postgres;
-GRANT ALL ON TABLE public.cardview TO postgres;
-
 
 -- public.cmda_exec definition
 
@@ -101,11 +198,6 @@ GRANT ALL ON TABLE public.cardview TO postgres;
 CREATE TABLE public.cmda_exec (
 	cmda_output text NULL
 );
-
--- Permissions
-
-ALTER TABLE public.cmda_exec OWNER TO postgres;
-GRANT ALL ON TABLE public.cmda_exec TO postgres;
 
 
 -- public.config definition
@@ -124,11 +216,6 @@ CREATE TABLE public.config (
 	CONSTRAINT config_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.config OWNER TO postgres;
-GRANT ALL ON TABLE public.config TO postgres;
-
 
 -- public.financialinfo definition
 
@@ -144,11 +231,6 @@ CREATE TABLE public.financialinfo (
 	valor float8 NOT NULL,
 	CONSTRAINT financialinfo_pkey PRIMARY KEY (id)
 );
-
--- Permissions
-
-ALTER TABLE public.financialinfo OWNER TO postgres;
-GRANT ALL ON TABLE public.financialinfo TO postgres;
 
 
 -- public."groups" definition
@@ -167,11 +249,6 @@ CREATE TABLE public."groups" (
 	CONSTRAINT uk_iv95crpat83rqqgixej9uhm9m UNIQUE (slug)
 );
 
--- Permissions
-
-ALTER TABLE public."groups" OWNER TO postgres;
-GRANT ALL ON TABLE public."groups" TO postgres;
-
 
 -- public.identificationdocument definition
 
@@ -188,11 +265,6 @@ CREATE TABLE public.identificationdocument (
 	CONSTRAINT identificationdocument_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.identificationdocument OWNER TO postgres;
-GRANT ALL ON TABLE public.identificationdocument TO postgres;
-
 
 -- public.insight definition
 
@@ -208,11 +280,6 @@ CREATE TABLE public.insight (
 	url varchar(255) NULL,
 	CONSTRAINT insight_pkey PRIMARY KEY (id)
 );
-
--- Permissions
-
-ALTER TABLE public.insight OWNER TO postgres;
-GRANT ALL ON TABLE public.insight TO postgres;
 
 
 -- public.launch definition
@@ -231,11 +298,6 @@ CREATE TABLE public.launch (
 	CONSTRAINT launch_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.launch OWNER TO postgres;
-GRANT ALL ON TABLE public.launch TO postgres;
-
 
 -- public.launchworkflow definition
 
@@ -251,11 +313,6 @@ CREATE TABLE public.launchworkflow (
 	CONSTRAINT launchworkflow_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.launchworkflow OWNER TO postgres;
-GRANT ALL ON TABLE public.launchworkflow TO postgres;
-
 
 -- public."like" definition
 
@@ -269,11 +326,6 @@ CREATE TABLE public."like" (
 	"type" varchar(255) NULL,
 	CONSTRAINT like_pkey PRIMARY KEY (id)
 );
-
--- Permissions
-
-ALTER TABLE public."like" OWNER TO postgres;
-GRANT ALL ON TABLE public."like" TO postgres;
 
 
 -- public.mynejsondto definition
@@ -290,11 +342,6 @@ CREATE TABLE public.mynejsondto (
 	CONSTRAINT mynejsondto_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.mynejsondto OWNER TO postgres;
-GRANT ALL ON TABLE public.mynejsondto TO postgres;
-
 
 -- public.mynerelationjsondto definition
 
@@ -308,11 +355,6 @@ CREATE TABLE public.mynerelationjsondto (
 	"type" varchar(255) NULL,
 	CONSTRAINT mynerelationjsondto_pkey PRIMARY KEY (id)
 );
-
--- Permissions
-
-ALTER TABLE public.mynerelationjsondto OWNER TO postgres;
-GRANT ALL ON TABLE public.mynerelationjsondto TO postgres;
 
 
 -- public.myneuser definition
@@ -345,15 +387,10 @@ create trigger updateslug after
 insert
     on
     public.myneuser for each row execute function user_slug();
-create trigger inserttag after
+create trigger insertusertag after
 insert
     on
-    public.myneuser for each row execute function taginsert();
-
--- Permissions
-
-ALTER TABLE public.myneuser OWNER TO postgres;
-GRANT ALL ON TABLE public.myneuser TO postgres;
+    public.myneuser for each row execute function taguserinsert();
 
 
 -- public.payment definition
@@ -368,11 +405,6 @@ CREATE TABLE public.payment (
 	value float8 NOT NULL,
 	CONSTRAINT payment_pkey PRIMARY KEY (id)
 );
-
--- Permissions
-
-ALTER TABLE public.payment OWNER TO postgres;
-GRANT ALL ON TABLE public.payment TO postgres;
 
 
 -- public.phone definition
@@ -389,11 +421,6 @@ CREATE TABLE public.phone (
 	CONSTRAINT phone_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.phone OWNER TO postgres;
-GRANT ALL ON TABLE public.phone TO postgres;
-
 
 -- public.postsummary definition
 
@@ -405,11 +432,6 @@ CREATE TABLE public.postsummary (
 	id varchar(36) NOT NULL,
 	CONSTRAINT postsummary_pkey PRIMARY KEY (id)
 );
-
--- Permissions
-
-ALTER TABLE public.postsummary OWNER TO postgres;
-GRANT ALL ON TABLE public.postsummary TO postgres;
 
 
 -- public.product definition
@@ -428,10 +450,27 @@ CREATE TABLE public.product (
 	CONSTRAINT product_pkey PRIMARY KEY (id)
 );
 
--- Permissions
+-- Table Triggers
 
-ALTER TABLE public.product OWNER TO postgres;
-GRANT ALL ON TABLE public.product TO postgres;
+create trigger insertproducttag after
+insert
+    on
+    public.product for each row execute function taguserinsert();
+
+
+-- public.productdetail definition
+
+-- Drop table
+
+-- DROP TABLE public.productdetail;
+
+CREATE TABLE public.productdetail (
+	id varchar(36) NOT NULL,
+	description varchar(255) NULL,
+	"key" varchar(255) NULL,
+	"_order" int4 NULL,
+	CONSTRAINT productdetail_pkey PRIMARY KEY (id)
+);
 
 
 -- public.resourcebyownerdto definition
@@ -448,11 +487,6 @@ CREATE TABLE public.resourcebyownerdto (
 	CONSTRAINT resourcebyownerdto_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.resourcebyownerdto OWNER TO postgres;
-GRANT ALL ON TABLE public.resourcebyownerdto TO postgres;
-
 
 -- public.resourcedto definition
 
@@ -467,11 +501,6 @@ CREATE TABLE public.resourcedto (
 	CONSTRAINT resourcedto_pkey PRIMARY KEY (findresourcedata)
 );
 
--- Permissions
-
-ALTER TABLE public.resourcedto OWNER TO postgres;
-GRANT ALL ON TABLE public.resourcedto TO postgres;
-
 
 -- public.retorno definition
 
@@ -482,11 +511,6 @@ GRANT ALL ON TABLE public.resourcedto TO postgres;
 CREATE TABLE public.retorno (
 	"case" text NULL
 );
-
--- Permissions
-
-ALTER TABLE public.retorno OWNER TO postgres;
-GRANT ALL ON TABLE public.retorno TO postgres;
 
 
 -- public.s3file definition
@@ -506,11 +530,6 @@ CREATE TABLE public.s3file (
 	CONSTRAINT s3file_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.s3file OWNER TO postgres;
-GRANT ALL ON TABLE public.s3file TO postgres;
-
 
 -- public.site definition
 
@@ -523,11 +542,6 @@ CREATE TABLE public.site (
 	url varchar(255) NULL,
 	CONSTRAINT site_pkey PRIMARY KEY (id)
 );
-
--- Permissions
-
-ALTER TABLE public.site OWNER TO postgres;
-GRANT ALL ON TABLE public.site TO postgres;
 
 
 -- public.socialnetwork definition
@@ -545,11 +559,6 @@ CREATE TABLE public.socialnetwork (
 	CONSTRAINT socialnetwork_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.socialnetwork OWNER TO postgres;
-GRANT ALL ON TABLE public.socialnetwork TO postgres;
-
 
 -- public.t_e definition
 
@@ -560,11 +569,6 @@ GRANT ALL ON TABLE public.socialnetwork TO postgres;
 CREATE TABLE public.t_e (
 	docs text NULL
 );
-
--- Permissions
-
-ALTER TABLE public.t_e OWNER TO postgres;
-GRANT ALL ON TABLE public.t_e TO postgres;
 
 
 -- public.tag definition
@@ -581,11 +585,6 @@ CREATE TABLE public.tag (
 	CONSTRAINT tag_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.tag OWNER TO postgres;
-GRANT ALL ON TABLE public.tag TO postgres;
-
 
 -- public.tmp_docs definition
 
@@ -597,11 +596,6 @@ CREATE TABLE public.tmp_docs (
 	"data" text NULL
 );
 
--- Permissions
-
-ALTER TABLE public.tmp_docs OWNER TO postgres;
-GRANT ALL ON TABLE public.tmp_docs TO postgres;
-
 
 -- public.world1 definition
 
@@ -612,11 +606,6 @@ GRANT ALL ON TABLE public.tmp_docs TO postgres;
 CREATE TABLE public.world1 (
 	"data" json NULL
 );
-
--- Permissions
-
-ALTER TABLE public.world1 OWNER TO postgres;
-GRANT ALL ON TABLE public.world1 TO postgres;
 
 
 -- public.groupmembers definition
@@ -635,11 +624,6 @@ CREATE TABLE public.groupmembers (
 	CONSTRAINT fk1pck7dir09c5yques4b3gakii FOREIGN KEY (user_id) REFERENCES public.myneuser(id),
 	CONSTRAINT fk6suac69cc5vn69fwbp96i0xnl FOREIGN KEY (group_id) REFERENCES public."groups"(id)
 );
-
--- Permissions
-
-ALTER TABLE public.groupmembers OWNER TO postgres;
-GRANT ALL ON TABLE public.groupmembers TO postgres;
 
 
 -- public.messagenotification definition
@@ -664,11 +648,6 @@ CREATE TABLE public.messagenotification (
 	CONSTRAINT fkbujicj06wbwl43xkwraffia2j FOREIGN KEY (receiverid) REFERENCES public.myneuser(id)
 );
 
--- Permissions
-
-ALTER TABLE public.messagenotification OWNER TO postgres;
-GRANT ALL ON TABLE public.messagenotification TO postgres;
-
 
 -- public.post definition
 
@@ -686,11 +665,6 @@ CREATE TABLE public.post (
 	CONSTRAINT post_pkey PRIMARY KEY (id),
 	CONSTRAINT fksmimo05ej6b8u91r6omk3n85g FOREIGN KEY (owner_id) REFERENCES public.myneuser(id)
 );
-
--- Permissions
-
-ALTER TABLE public.post OWNER TO postgres;
-GRANT ALL ON TABLE public.post TO postgres;
 
 
 -- public.relationrequest definition
@@ -711,11 +685,6 @@ CREATE TABLE public.relationrequest (
 	CONSTRAINT fk65ggw39f5ih5r58nx74tam11i FOREIGN KEY (from_id) REFERENCES public.myneuser(id),
 	CONSTRAINT fknjawc3oheuvp3vu2o7jbvo5g1 FOREIGN KEY (to_id) REFERENCES public.myneuser(id)
 );
-
--- Permissions
-
-ALTER TABLE public.relationrequest OWNER TO postgres;
-GRANT ALL ON TABLE public.relationrequest TO postgres;
 
 
 -- public.userrelation definition
@@ -741,11 +710,6 @@ create trigger ajustuserrelation after
 insert
     on
     public.userrelation for each row execute function userrelationajust();
-
--- Permissions
-
-ALTER TABLE public.userrelation OWNER TO postgres;
-GRANT ALL ON TABLE public.userrelation TO postgres;
 
 
 -- public.myneresourceinformation definition
@@ -775,11 +739,6 @@ CREATE TABLE public.myneresourceinformation (
 	CONSTRAINT fkso12pi6ebo8rcjv3e9pi3ybnd FOREIGN KEY (post) REFERENCES public.post(id)
 );
 
--- Permissions
-
-ALTER TABLE public.myneresourceinformation OWNER TO postgres;
-GRANT ALL ON TABLE public.myneresourceinformation TO postgres;
-
 
 -- public.ownerresources definition
 
@@ -797,11 +756,6 @@ CREATE TABLE public.ownerresources (
 	CONSTRAINT fkoxoer1503fnjf9g63kcm9bujx FOREIGN KEY ("owner") REFERENCES public.myneresourceinformation(id)
 );
 
--- Permissions
-
-ALTER TABLE public.ownerresources OWNER TO postgres;
-GRANT ALL ON TABLE public.ownerresources TO postgres;
-
 
 -- public.resourcetag definition
 
@@ -817,11 +771,6 @@ CREATE TABLE public.resourcetag (
 	CONSTRAINT fkbecq978ibubt369vfp12n1hqy FOREIGN KEY (tag) REFERENCES public.tag(id),
 	CONSTRAINT fkfl5m64glrhopquj9e8eb006gn FOREIGN KEY (resource) REFERENCES public.myneresourceinformation(id)
 );
-
--- Permissions
-
-ALTER TABLE public.resourcetag OWNER TO postgres;
-GRANT ALL ON TABLE public.resourcetag TO postgres;
 
 
 -- public.accountability definition
@@ -849,11 +798,6 @@ update
     on
     public.accountability for each row execute function update_views();
 
--- Permissions
-
-ALTER TABLE public.accountability OWNER TO postgres;
-GRANT ALL ON TABLE public.accountability TO postgres;
-
 
 -- public."comment" definition
 
@@ -873,11 +817,6 @@ CREATE TABLE public."comment" (
 	CONSTRAINT fk4m11y2dem5m00480fejdlb8t7 FOREIGN KEY (postowner_id) REFERENCES public.ownerresources(id),
 	CONSTRAINT fkbqaxmjh45xx9x2f41do2hqi84 FOREIGN KEY (owner_id) REFERENCES public.myneresourceinformation(id)
 );
-
--- Permissions
-
-ALTER TABLE public."comment" OWNER TO postgres;
-GRANT ALL ON TABLE public."comment" TO postgres;
 
 
 
@@ -941,11 +880,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.finddata(varchar) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.finddata(varchar) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.findfeedbyuser(user_id character varying, itens_by_page integer, page integer)
  RETURNS SETOF feedresult
  LANGUAGE plpgsql
@@ -1003,11 +937,6 @@ END;
 
 $function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.findfeedbyuser(varchar,int4,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findfeedbyuser(varchar,int4,int4) TO postgres;
 
 CREATE OR REPLACE FUNCTION public.findfeedbyuserdata(user_id character varying, itens_by_page integer, page integer)
  RETURNS SETOF jsonresult
@@ -1073,11 +1002,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.findfeedbyuserdata(varchar,int4,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findfeedbyuserdata(varchar,int4,int4) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.findmynefeed(user_id character varying, itens_by_page integer, page integer)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
@@ -1099,7 +1023,7 @@ select  u.createdate_post, jsonb(u.user_data) as user_data, jsonb(u.post_data) a
 (SELECT row_to_json(u.*) as user_data, jsonb_build_object('type', p.type) || jsonb(p.data) as post_data, cast(p.data ->> 'createDate' AS TIMESTAMP) as createdate_post, cast(p.data ->> 'id' AS varchar) as id_post
 FROM (
 	select u.id, row_to_json(u.*) AS user
-		,(jsonb_build_object('id', o.s3_id) || jsonb_build_object('createDate', o."createDate") || jsonb_build_object('description', o.description) || jsonb_build_object('filename', o."fileName") || jsonb_build_object('filetype', o."fileType") || jsonb_build_object('s3url', o.s3url)) AS profile_image
+		,(jsonb_build_object('id', o.s3_id) || jsonb_build_object('createDate', o."createDate") || jsonb_build_object('description', o.description) || jsonb_build_object('fileName', o."fileName") || jsonb_build_object('fileType', o."fileType") || jsonb_build_object('s3url', o.s3url)) AS profile_image
 	FROM (
 		SELECT u.id
 			,u.accountname as "accountName"
@@ -1186,11 +1110,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.findmynefeed(varchar,int4,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findmynefeed(varchar,int4,int4) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.findmynegalaxy(user_id character varying)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
@@ -1240,11 +1159,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.findmynegalaxy(varchar) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findmynegalaxy(varchar) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.findmyneglobalfeed(itens_by_page integer, page integer)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
@@ -1266,7 +1180,7 @@ select  jsonb(u.user_data) as user_data, jsonb(u.post_data) as post_data, jsonb_
 (SELECT json_build_object('user',u.user ,'profile_image',u.profile_image)  as user_data, jsonb_build_object('type', p.type) || jsonb(p.data) as post_data, cast(p.data ->> 'createdate' AS TIMESTAMP) as createdate_post, cast(p.data ->> 'id' AS varchar) as id_post
 FROM (
 	select o.post_id, u.id, row_to_json(u.*) AS user
-		,(jsonb_build_object('id', o.s3_id) || jsonb_build_object('createDate', o."createDate") || jsonb_build_object('description', o.description) || jsonb_build_object('filename', o."fileName") || jsonb_build_object('filetype', o."fileType") || jsonb_build_object('s3url', o.s3url)) AS profile_image
+		,(jsonb_build_object('id', o.s3_id) || jsonb_build_object('createDate', o."createDate") || jsonb_build_object('description', o.description) || jsonb_build_object('fileName', o."fileName") || jsonb_build_object('fileType', o."fileType") || jsonb_build_object('s3url', o.s3url)) AS profile_image
 	FROM (
 		SELECT u.id
 			,u.accountname as "accountName"
@@ -1334,11 +1248,6 @@ END;
 
 $function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.findmyneglobalfeed(int4,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findmyneglobalfeed(int4,int4) TO postgres;
 
 CREATE OR REPLACE FUNCTION public.findmyneinsights(user_id character varying, itens_by_page integer, page integer)
  RETURNS SETOF mynejsontype
@@ -1457,11 +1366,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.findmyneinsights(varchar,int4,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findmyneinsights(varchar,int4,int4) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.findmynerelatedposts(post_id character varying, qtde integer)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
@@ -1497,11 +1401,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.findmynerelatedposts(varchar,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findmynerelatedposts(varchar,int4) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.findmynerelations(user_from character varying, user_to character varying, itens_by_page integer, page integer)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
@@ -1536,11 +1435,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.findmynerelations(varchar,varchar,int4,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findmynerelations(varchar,varchar,int4,int4) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.findmyneresource(resource character varying)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
@@ -1556,8 +1450,10 @@ where replace(m.mri , 'mri::', '') = replace(resource, 'mri::', '')) as type,
  	to_json(f.data) as data from
 (select jsonb_build_object('owner_id', o.owner) || jsonb_build_object('type', o.type) || to_jsonb(o.data) || f.nested as data from
 (select f.owner, jsonb_build_object('nested', array_agg(f.data)) as nested from
+(select o.owner, f.data  from (select resource as owner) o left join 
 (select f.owner, jsonb_build_object('type', f.type) || to_jsonb(f.data)	as data 
-from findresourcebyowner(resource) f) f
+from findresourcebyowner(resource) f) f on o.owner = f.owner
+) f
 group by f.owner) f 
 cross join lateral findresourcedata(f.owner) as o ) f
 
@@ -1575,11 +1471,6 @@ END;
 
 $function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.findmyneresource(varchar) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findmyneresource(varchar) TO postgres;
 
 CREATE OR REPLACE FUNCTION public.findrelatedposts(mri character varying, qtdepost integer)
  RETURNS SETOF feedresult
@@ -1616,11 +1507,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.findrelatedposts(varchar,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findrelatedposts(varchar,int4) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.findresourcebyowner(resource character varying)
  RETURNS SETOF jsonresultowner
  LANGUAGE plpgsql
@@ -1653,11 +1539,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.findresourcebyowner(varchar) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findresourcebyowner(varchar) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.findresourcebyownerandtype(resource character varying, type_ character varying)
  RETURNS SETOF jsonresultowner
  LANGUAGE plpgsql
@@ -1689,11 +1570,6 @@ END;
 
 $function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.findresourcebyownerandtype(varchar,varchar) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findresourcebyownerandtype(varchar,varchar) TO postgres;
 
 CREATE OR REPLACE FUNCTION public.findresourcedata(resource character varying)
  RETURNS SETOF jsonresultowner
@@ -1734,7 +1610,7 @@ mri_id := replace(resource,'mri::','');
    then (select row_to_json(c) from (select c.id, c.createdate as "createDate", c.text from public.comment c  where c.id = mri_id) c)
    when (mri_type) = 'ADDRESS'
    then (select row_to_json(a) from (select * from public.address a where a.id= mri_id) a)
-   else (select row_to_json(s) from (select s.id, s.createdate as "createDate", s.description, s.filename as "filename", s.filetype as "filetype", s.s3url, s.solicitacaoid from public.s3file s where s.id= mri_id) s)
+   else (select row_to_json(s) from (select s.id, s.createdate as "createDate", s.description, s.filename as "fileName", s.filetype as "fileType", s.s3url, s.solicitacaoid from public.s3file s where s.id= mri_id) s)
    end) as resourcedata) r,
   (select replace(m.mri,'mri::','') as mri, replace(mr.mri,'mri::','') as owner, m.type from public.myneresourceinformation m 
 left join ownerresources o on o.slave = m.id
@@ -1756,22 +1632,12 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.findresourcedata(varchar) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findresourcedata(varchar) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.gin_extract_query_trgm(text, internal, smallint, internal, internal, internal, internal)
  RETURNS internal
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pg_trgm', $function$gin_extract_query_trgm$function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.gin_extract_query_trgm(text,internal,int2,internal,internal,internal,internal) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.gin_extract_query_trgm(text,internal,int2,internal,internal,internal,internal) TO rdsadmin;
 
 CREATE OR REPLACE FUNCTION public.gin_extract_value_trgm(text, internal)
  RETURNS internal
@@ -1780,22 +1646,12 @@ CREATE OR REPLACE FUNCTION public.gin_extract_value_trgm(text, internal)
 AS '$libdir/pg_trgm', $function$gin_extract_value_trgm$function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.gin_extract_value_trgm(text,internal) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.gin_extract_value_trgm(text,internal) TO rdsadmin;
-
 CREATE OR REPLACE FUNCTION public.gin_trgm_consistent(internal, smallint, text, integer, internal, internal, internal, internal)
  RETURNS boolean
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pg_trgm', $function$gin_trgm_consistent$function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.gin_trgm_consistent(internal,int2,text,int4,internal,internal,internal,internal) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.gin_trgm_consistent(internal,int2,text,int4,internal,internal,internal,internal) TO rdsadmin;
 
 CREATE OR REPLACE FUNCTION public.gin_trgm_triconsistent(internal, smallint, text, integer, internal, internal, internal)
  RETURNS "char"
@@ -1804,22 +1660,12 @@ CREATE OR REPLACE FUNCTION public.gin_trgm_triconsistent(internal, smallint, tex
 AS '$libdir/pg_trgm', $function$gin_trgm_triconsistent$function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.gin_trgm_triconsistent(internal,int2,text,int4,internal,internal,internal) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.gin_trgm_triconsistent(internal,int2,text,int4,internal,internal,internal) TO rdsadmin;
-
 CREATE OR REPLACE FUNCTION public.gtrgm_compress(internal)
  RETURNS internal
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pg_trgm', $function$gtrgm_compress$function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.gtrgm_compress(internal) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.gtrgm_compress(internal) TO rdsadmin;
 
 CREATE OR REPLACE FUNCTION public.gtrgm_consistent(internal, text, smallint, oid, internal)
  RETURNS boolean
@@ -1828,22 +1674,12 @@ CREATE OR REPLACE FUNCTION public.gtrgm_consistent(internal, text, smallint, oid
 AS '$libdir/pg_trgm', $function$gtrgm_consistent$function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.gtrgm_consistent(internal,text,int2,oid,internal) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.gtrgm_consistent(internal,text,int2,oid,internal) TO rdsadmin;
-
 CREATE OR REPLACE FUNCTION public.gtrgm_decompress(internal)
  RETURNS internal
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pg_trgm', $function$gtrgm_decompress$function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.gtrgm_decompress(internal) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.gtrgm_decompress(internal) TO rdsadmin;
 
 CREATE OR REPLACE FUNCTION public.gtrgm_distance(internal, text, smallint, oid, internal)
  RETURNS double precision
@@ -1852,22 +1688,12 @@ CREATE OR REPLACE FUNCTION public.gtrgm_distance(internal, text, smallint, oid, 
 AS '$libdir/pg_trgm', $function$gtrgm_distance$function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.gtrgm_distance(internal,text,int2,oid,internal) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.gtrgm_distance(internal,text,int2,oid,internal) TO rdsadmin;
-
 CREATE OR REPLACE FUNCTION public.gtrgm_in(cstring)
  RETURNS gtrgm
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pg_trgm', $function$gtrgm_in$function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.gtrgm_in(cstring) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.gtrgm_in(cstring) TO rdsadmin;
 
 CREATE OR REPLACE FUNCTION public.gtrgm_out(gtrgm)
  RETURNS cstring
@@ -1876,22 +1702,12 @@ CREATE OR REPLACE FUNCTION public.gtrgm_out(gtrgm)
 AS '$libdir/pg_trgm', $function$gtrgm_out$function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.gtrgm_out(gtrgm) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.gtrgm_out(gtrgm) TO rdsadmin;
-
 CREATE OR REPLACE FUNCTION public.gtrgm_penalty(internal, internal, internal)
  RETURNS internal
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pg_trgm', $function$gtrgm_penalty$function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.gtrgm_penalty(internal,internal,internal) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.gtrgm_penalty(internal,internal,internal) TO rdsadmin;
 
 CREATE OR REPLACE FUNCTION public.gtrgm_picksplit(internal, internal)
  RETURNS internal
@@ -1900,11 +1716,6 @@ CREATE OR REPLACE FUNCTION public.gtrgm_picksplit(internal, internal)
 AS '$libdir/pg_trgm', $function$gtrgm_picksplit$function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.gtrgm_picksplit(internal,internal) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.gtrgm_picksplit(internal,internal) TO rdsadmin;
-
 CREATE OR REPLACE FUNCTION public.gtrgm_same(gtrgm, gtrgm, internal)
  RETURNS internal
  LANGUAGE c
@@ -1912,22 +1723,12 @@ CREATE OR REPLACE FUNCTION public.gtrgm_same(gtrgm, gtrgm, internal)
 AS '$libdir/pg_trgm', $function$gtrgm_same$function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.gtrgm_same(gtrgm,gtrgm,internal) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.gtrgm_same(gtrgm,gtrgm,internal) TO rdsadmin;
-
 CREATE OR REPLACE FUNCTION public.gtrgm_union(internal, internal)
  RETURNS gtrgm
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pg_trgm', $function$gtrgm_union$function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.gtrgm_union(internal,internal) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.gtrgm_union(internal,internal) TO rdsadmin;
 
 CREATE OR REPLACE FUNCTION public.insertadmindata()
  RETURNS character varying
@@ -1950,11 +1751,6 @@ return retorno;
 end;
 $function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.insertadmindata() OWNER TO postgres;
-GRANT ALL ON FUNCTION public.insertadmindata() TO postgres;
 
 CREATE OR REPLACE FUNCTION public.listmynerelations(user_id_ character varying, relation_type character varying, itens_by_page integer, page integer)
  RETURNS SETOF mynejsontype
@@ -2462,11 +2258,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.listmynerelations(varchar,varchar,int4,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.listmynerelations(varchar,varchar,int4,int4) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.listresourcesbytype(resource_type character varying, itens_by_page integer, page integer)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
@@ -2529,11 +2320,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.listresourcesbytype(varchar,int4,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.listresourcesbytype(varchar,int4,int4) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.myneglobalfeed(itens_by_page integer, page integer)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
@@ -2558,53 +2344,6 @@ END;
 
 $function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.myneglobalfeed(int4,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.myneglobalfeed(int4,int4) TO postgres;
-
-CREATE OR REPLACE FUNCTION public.myneresearch(research character varying, user_id character varying)
- RETURNS SETOF mynejsontype
- LANGUAGE plpgsql
-AS $function$
-   DECLARE
-      resource_t public.mynejsontype%ROWTYPE;
-BEGIN
-
- 	FOR resource_t in
-
- select uuid_generate_v4() as id, 'POST' as type, to_json(research)  as data
-
- 
-loop
-		RETURN NEXT resource_t;
-	
-   END LOOP;
-  
-  	
-   RETURN;
-
-END;
-
-$function$
-;
-
--- Permissions
-
-ALTER FUNCTION public.myneresearch(varchar,varchar) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.myneresearch(varchar,varchar) TO postgres;
-
-
--- Agregate tsvector
-
-CREATE AGGREGATE tsvector_agg(tsvector) (
-   STYPE = pg_catalog.tsvector,
-   SFUNC = pg_catalog.tsvector_concat,
-   INITCOND = ''
-);
-
-
 
 CREATE OR REPLACE FUNCTION public.myneresearch(research character varying, research_type character varying, itens_by_page integer, page integer)
  RETURNS SETOF mynejsontype
@@ -2738,10 +2477,108 @@ END;
 $function$
 ;
 
--- Permissions
+CREATE OR REPLACE FUNCTION public.myneresearch(research character varying, user_id character varying)
+ RETURNS SETOF mynejsontype
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.mynejsontype%ROWTYPE;
+BEGIN
 
-ALTER FUNCTION public.myneresearch(varchar,varchar,int4,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.myneresearch(varchar,varchar,int4,int4) TO postgres;
+ 	FOR resource_t in
+
+ select uuid_generate_v4() as id, 'POST' as type, to_json(research)  as data
+
+ 
+loop
+		RETURN NEXT resource_t;
+	
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.myneresearchfeed(itens_by_page integer, page integer)
+ RETURNS SETOF mynejsontype
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.mynejsontype%ROWTYPE;
+BEGIN
+
+ 	FOR resource_t in
+ 	
+select * from 
+(
+select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json( r.data) as data from 
+(select jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
+from
+(select r.owner,  array_agg(ro.data), r.data_post, r.data as data_slave from
+(select r.owner, r.data_post, jsonb_build_object('nested', array_agg(r.data_slave)) as data from
+(select rd.owner, jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
+jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave from
+(select replace(m.mri,'mri::','') as resource_id 
+from myneresourceinformation m
+where 
+ m.type = 'POST'
+ order by random()
+limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+) m
+cross join lateral findresourcedata(m.resource_id) as rd
+cross join lateral findresourcebyowner(m.resource_id) as ro) r 
+group by r.owner, r.data_post) r
+left join lateral findresourcebyowner(r.owner) ro on true
+where ro.type = 'PROFILE_IMAGE' or ro.type isnull
+group by r.owner, r.data_post, r.data) r 
+cross join lateral findresourcedata(r.owner) as ro) r
+
+union all
+
+select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json(r.data) as data from
+(select jsonb_build_object('type', rd.type) || jsonb(rd.data)|| jsonb_build_object('profile_image', ro.data) as data from
+(select replace(m.mri,'mri::','') as resource_id 
+from myneresourceinformation m
+where 
+ m.type = 'USER'
+ order by random()
+limit coalesce(
+ceil( 
+itens_by_page *
+(cast( (select count(*) from myneresourceinformation m where m."type" ='USER') as float)/
+cast( (select count(*) from myneresourceinformation m where m."type" ='POST') as float)))
+, 5)
+offset coalesce(page, 0) * coalesce(
+ceil( 
+itens_by_page *
+(cast( (select count(*) from myneresourceinformation m where m."type" ='USER') as float)/
+cast( (select count(*) from myneresourceinformation m where m."type" ='POST') as float)))
+, 5)
+) m
+cross join lateral findresourcedata(m.resource_id) as rd
+LEFT   JOIN LATERAL findresourcebyowner(m.resource_id) ro ON true
+where ro.type isnull or ro.type = 'PROFILE_IMAGE') r
+) r
+order by random()
+
+
+loop
+		RETURN NEXT resource_t;
+	
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
 
 CREATE OR REPLACE FUNCTION public.removerelations(fromuser character varying, touser character varying, type_ character varying)
  RETURNS character varying
@@ -2809,11 +2646,6 @@ RETURN retorno;
 end;
 $function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.removerelations(varchar,varchar,varchar) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.removerelations(varchar,varchar,varchar) TO postgres;
 
 CREATE OR REPLACE FUNCTION public.requestrelation(user_request character varying, user_to_follow character varying, relation_type character varying)
  RETURNS character varying
@@ -3011,11 +2843,6 @@ end;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.requestrelation(varchar,varchar,varchar) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.requestrelation(varchar,varchar,varchar) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.responserelationrequest(requestid character varying, status_ character varying)
  RETURNS character varying
  LANGUAGE plpgsql
@@ -3145,22 +2972,12 @@ end;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.responserelationrequest(varchar,varchar) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.responserelationrequest(varchar,varchar) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.set_limit(real)
  RETURNS real
  LANGUAGE c
  STRICT
 AS '$libdir/pg_trgm', $function$set_limit$function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.set_limit(float4) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.set_limit(float4) TO rdsadmin;
 
 CREATE OR REPLACE FUNCTION public.show_limit()
  RETURNS real
@@ -3169,22 +2986,12 @@ CREATE OR REPLACE FUNCTION public.show_limit()
 AS '$libdir/pg_trgm', $function$show_limit$function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.show_limit() OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.show_limit() TO rdsadmin;
-
 CREATE OR REPLACE FUNCTION public.show_trgm(text)
  RETURNS text[]
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pg_trgm', $function$show_trgm$function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.show_trgm(text) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.show_trgm(text) TO rdsadmin;
 
 CREATE OR REPLACE FUNCTION public.similarity(text, text)
  RETURNS real
@@ -3193,11 +3000,6 @@ CREATE OR REPLACE FUNCTION public.similarity(text, text)
 AS '$libdir/pg_trgm', $function$similarity$function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.similarity(text,text) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.similarity(text,text) TO rdsadmin;
-
 CREATE OR REPLACE FUNCTION public.similarity_dist(text, text)
  RETURNS real
  LANGUAGE c
@@ -3205,22 +3007,12 @@ CREATE OR REPLACE FUNCTION public.similarity_dist(text, text)
 AS '$libdir/pg_trgm', $function$similarity_dist$function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.similarity_dist(text,text) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.similarity_dist(text,text) TO rdsadmin;
-
 CREATE OR REPLACE FUNCTION public.similarity_op(text, text)
  RETURNS boolean
  LANGUAGE c
  STABLE PARALLEL SAFE STRICT
 AS '$libdir/pg_trgm', $function$similarity_op$function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.similarity_op(text,text) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.similarity_op(text,text) TO rdsadmin;
 
 CREATE OR REPLACE FUNCTION public.slugcolumn(tbl_name character varying, clmn_name character varying)
  RETURNS TABLE(slug json)
@@ -3234,11 +3026,6 @@ EXECUTE format('select row_to_json(s) as slug from (select id, slugify(%s) as sl
  END;
 $function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.slugcolumn(varchar,varchar) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.slugcolumn(varchar,varchar) TO postgres;
 
 CREATE OR REPLACE FUNCTION public.slugify(value text)
  RETURNS text
@@ -3273,23 +3060,12 @@ AS $function$
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.slugify(text) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.slugify(text) TO public;
-GRANT ALL ON FUNCTION public.slugify(text) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.strict_word_similarity(text, text)
  RETURNS real
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pg_trgm', $function$strict_word_similarity$function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.strict_word_similarity(text,text) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.strict_word_similarity(text,text) TO rdsadmin;
 
 CREATE OR REPLACE FUNCTION public.strict_word_similarity_commutator_op(text, text)
  RETURNS boolean
@@ -3298,22 +3074,12 @@ CREATE OR REPLACE FUNCTION public.strict_word_similarity_commutator_op(text, tex
 AS '$libdir/pg_trgm', $function$strict_word_similarity_commutator_op$function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.strict_word_similarity_commutator_op(text,text) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.strict_word_similarity_commutator_op(text,text) TO rdsadmin;
-
 CREATE OR REPLACE FUNCTION public.strict_word_similarity_dist_commutator_op(text, text)
  RETURNS real
  LANGUAGE c
  IMMUTABLE PARALLEL SAFE STRICT
 AS '$libdir/pg_trgm', $function$strict_word_similarity_dist_commutator_op$function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.strict_word_similarity_dist_commutator_op(text,text) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.strict_word_similarity_dist_commutator_op(text,text) TO rdsadmin;
 
 CREATE OR REPLACE FUNCTION public.strict_word_similarity_dist_op(text, text)
  RETURNS real
@@ -3322,11 +3088,6 @@ CREATE OR REPLACE FUNCTION public.strict_word_similarity_dist_op(text, text)
 AS '$libdir/pg_trgm', $function$strict_word_similarity_dist_op$function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.strict_word_similarity_dist_op(text,text) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.strict_word_similarity_dist_op(text,text) TO rdsadmin;
-
 CREATE OR REPLACE FUNCTION public.strict_word_similarity_op(text, text)
  RETURNS boolean
  LANGUAGE c
@@ -3334,12 +3095,36 @@ CREATE OR REPLACE FUNCTION public.strict_word_similarity_op(text, text)
 AS '$libdir/pg_trgm', $function$strict_word_similarity_op$function$
 ;
 
--- Permissions
+CREATE OR REPLACE FUNCTION public.tagproductinsert()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
 
-ALTER FUNCTION public.strict_word_similarity_op(text,text) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.strict_word_similarity_op(text,text) TO rdsadmin;
+BEGIN
 
-CREATE OR REPLACE FUNCTION public.taginsert()
+
+insert into tag(tag, tag_tsv) select a.tag1, a.to_tsvector from
+(select concat(p.name,' ', p.producttype)  as tag1 , to_tsvector('portuguese', unaccent(concat(p.name,' ', p.producttype)))
+from myneresourceinformation m, product p
+where replace(m.mri, 'mri::', '') = p.id
+except
+select t.tag, t.tag_tsv from tag t) a;
+
+insert into resourcetag(resource, tag) select a.id, a.tag_id from
+(select m.id, t.id as tag_id 
+from myneresourceinformation m, product p, tag t 
+where replace(m.mri, 'mri::', '') = p.id and concat(p.name,' ', p.producttype) = t.tag
+except
+select r.resource, r.tag from resourcetag r) a;
+
+RETURN NEW;
+
+END;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.taguserinsert()
  RETURNS trigger
  LANGUAGE plpgsql
 AS $function$
@@ -3368,11 +3153,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.taginsert() OWNER TO postgres;
-GRANT ALL ON FUNCTION public.taginsert() TO postgres;
-
 CREATE OR REPLACE FUNCTION public.testecoluna(coluna character varying)
  RETURNS character varying
  LANGUAGE plpgsql
@@ -3390,22 +3170,12 @@ end;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.testecoluna(varchar) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.testecoluna(varchar) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.unaccent(regdictionary, text)
  RETURNS text
  LANGUAGE c
  STABLE PARALLEL SAFE STRICT
 AS '$libdir/unaccent', $function$unaccent_dict$function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.unaccent(regdictionary,text) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.unaccent(regdictionary,text) TO rdsadmin;
 
 CREATE OR REPLACE FUNCTION public.unaccent(text)
  RETURNS text
@@ -3414,11 +3184,6 @@ CREATE OR REPLACE FUNCTION public.unaccent(text)
 AS '$libdir/unaccent', $function$unaccent_dict$function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.unaccent(text) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.unaccent(text) TO rdsadmin;
-
 CREATE OR REPLACE FUNCTION public.unaccent_init(internal)
  RETURNS internal
  LANGUAGE c
@@ -3426,22 +3191,12 @@ CREATE OR REPLACE FUNCTION public.unaccent_init(internal)
 AS '$libdir/unaccent', $function$unaccent_init$function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.unaccent_init(internal) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.unaccent_init(internal) TO rdsadmin;
-
 CREATE OR REPLACE FUNCTION public.unaccent_lexize(internal, internal, internal, internal)
  RETURNS internal
  LANGUAGE c
  PARALLEL SAFE
 AS '$libdir/unaccent', $function$unaccent_lexize$function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.unaccent_lexize(internal,internal,internal,internal) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.unaccent_lexize(internal,internal,internal,internal) TO rdsadmin;
 
 CREATE OR REPLACE FUNCTION public.update_views()
  RETURNS trigger
@@ -3472,11 +3227,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.update_views() OWNER TO postgres;
-GRANT ALL ON FUNCTION public.update_views() TO postgres;
-
 CREATE OR REPLACE FUNCTION public.user_slug()
  RETURNS trigger
  LANGUAGE plpgsql
@@ -3505,12 +3255,6 @@ END;
 
 $function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.user_slug() OWNER TO postgres;
-GRANT ALL ON FUNCTION public.user_slug() TO public;
-GRANT ALL ON FUNCTION public.user_slug() TO postgres;
 
 CREATE OR REPLACE FUNCTION public.userrelationajust()
  RETURNS trigger
@@ -3577,193 +3321,3 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.userrelationajust() OWNER TO postgres;
-GRANT ALL ON FUNCTION public.userrelationajust() TO postgres;
-
-CREATE OR REPLACE FUNCTION public.uuid_generate_v1()
- RETURNS uuid
- LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_generate_v1$function$
-;
-
--- Permissions
-
-ALTER FUNCTION public.uuid_generate_v1() OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.uuid_generate_v1() TO rdsadmin;
-
-CREATE OR REPLACE FUNCTION public.uuid_generate_v1mc()
- RETURNS uuid
- LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_generate_v1mc$function$
-;
-
--- Permissions
-
-ALTER FUNCTION public.uuid_generate_v1mc() OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.uuid_generate_v1mc() TO rdsadmin;
-
-CREATE OR REPLACE FUNCTION public.uuid_generate_v3(namespace uuid, name text)
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_generate_v3$function$
-;
-
--- Permissions
-
-ALTER FUNCTION public.uuid_generate_v3(uuid,text) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.uuid_generate_v3(uuid,text) TO rdsadmin;
-
-CREATE OR REPLACE FUNCTION public.uuid_generate_v4()
- RETURNS uuid
- LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_generate_v4$function$
-;
-
--- Permissions
-
-ALTER FUNCTION public.uuid_generate_v4() OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.uuid_generate_v4() TO rdsadmin;
-
-CREATE OR REPLACE FUNCTION public.uuid_generate_v5(namespace uuid, name text)
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_generate_v5$function$
-;
-
--- Permissions
-
-ALTER FUNCTION public.uuid_generate_v5(uuid,text) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.uuid_generate_v5(uuid,text) TO rdsadmin;
-
-CREATE OR REPLACE FUNCTION public.uuid_nil()
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_nil$function$
-;
-
--- Permissions
-
-ALTER FUNCTION public.uuid_nil() OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.uuid_nil() TO rdsadmin;
-
-CREATE OR REPLACE FUNCTION public.uuid_ns_dns()
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_ns_dns$function$
-;
-
--- Permissions
-
-ALTER FUNCTION public.uuid_ns_dns() OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.uuid_ns_dns() TO rdsadmin;
-
-CREATE OR REPLACE FUNCTION public.uuid_ns_oid()
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_ns_oid$function$
-;
-
--- Permissions
-
-ALTER FUNCTION public.uuid_ns_oid() OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.uuid_ns_oid() TO rdsadmin;
-
-CREATE OR REPLACE FUNCTION public.uuid_ns_url()
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_ns_url$function$
-;
-
--- Permissions
-
-ALTER FUNCTION public.uuid_ns_url() OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.uuid_ns_url() TO rdsadmin;
-
-CREATE OR REPLACE FUNCTION public.uuid_ns_x500()
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_ns_x500$function$
-;
-
--- Permissions
-
-ALTER FUNCTION public.uuid_ns_x500() OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.uuid_ns_x500() TO rdsadmin;
-
-CREATE OR REPLACE FUNCTION public.word_similarity(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity$function$
-;
-
--- Permissions
-
-ALTER FUNCTION public.word_similarity(text,text) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.word_similarity(text,text) TO rdsadmin;
-
-CREATE OR REPLACE FUNCTION public.word_similarity_commutator_op(text, text)
- RETURNS boolean
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity_commutator_op$function$
-;
-
--- Permissions
-
-ALTER FUNCTION public.word_similarity_commutator_op(text,text) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.word_similarity_commutator_op(text,text) TO rdsadmin;
-
-CREATE OR REPLACE FUNCTION public.word_similarity_dist_commutator_op(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity_dist_commutator_op$function$
-;
-
--- Permissions
-
-ALTER FUNCTION public.word_similarity_dist_commutator_op(text,text) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.word_similarity_dist_commutator_op(text,text) TO rdsadmin;
-
-CREATE OR REPLACE FUNCTION public.word_similarity_dist_op(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity_dist_op$function$
-;
-
--- Permissions
-
-ALTER FUNCTION public.word_similarity_dist_op(text,text) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.word_similarity_dist_op(text,text) TO rdsadmin;
-
-CREATE OR REPLACE FUNCTION public.word_similarity_op(text, text)
- RETURNS boolean
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity_op$function$
-;
-
--- Permissions
-
-ALTER FUNCTION public.word_similarity_op(text,text) OWNER TO rdsadmin;
-GRANT ALL ON FUNCTION public.word_similarity_op(text,text) TO rdsadmin;
-
-
--- Permissions
-
-GRANT ALL ON SCHEMA public TO postgres;
-GRANT ALL ON SCHEMA public TO public;
