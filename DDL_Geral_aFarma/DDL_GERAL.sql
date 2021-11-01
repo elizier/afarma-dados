@@ -1,1087 +1,3 @@
--- DROP SCHEMA public;
-
-CREATE SCHEMA public AUTHORIZATION postgres;
-
-CREATE EXTENSION uuid-ossp;
-
-CREATE EXTENSION dblink;
-
-CREATE extension unaccent ;
-
-CREATE extension pg_trgm ;
-
-
-CREATE OR REPLACE FUNCTION public.uuid_generate_v1()
- RETURNS uuid
- LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_generate_v1$function$
-;
-
-CREATE OR REPLACE FUNCTION public.uuid_generate_v1mc()
- RETURNS uuid
- LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_generate_v1mc$function$
-;
-
-CREATE OR REPLACE FUNCTION public.uuid_generate_v3(namespace uuid, name text)
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_generate_v3$function$
-;
-
-CREATE OR REPLACE FUNCTION public.uuid_generate_v4()
- RETURNS uuid
- LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_generate_v4$function$
-;
-
-CREATE OR REPLACE FUNCTION public.uuid_generate_v5(namespace uuid, name text)
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_generate_v5$function$
-;
-
-CREATE OR REPLACE FUNCTION public.uuid_nil()
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_nil$function$
-;
-
-CREATE OR REPLACE FUNCTION public.uuid_ns_dns()
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_ns_dns$function$
-;
-
-CREATE OR REPLACE FUNCTION public.uuid_ns_oid()
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_ns_oid$function$
-;
-
-CREATE OR REPLACE FUNCTION public.uuid_ns_url()
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_ns_url$function$
-;
-
-CREATE OR REPLACE FUNCTION public.uuid_ns_x500()
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_ns_x500$function$
-;
-
-CREATE OR REPLACE FUNCTION public.word_similarity(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity$function$
-;
-
-CREATE OR REPLACE FUNCTION public.word_similarity_commutator_op(text, text)
- RETURNS boolean
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity_commutator_op$function$
-;
-
-CREATE OR REPLACE FUNCTION public.word_similarity_dist_commutator_op(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity_dist_commutator_op$function$
-;
-
-CREATE OR REPLACE FUNCTION public.word_similarity_dist_op(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity_dist_op$function$
-;
-
-CREATE OR REPLACE FUNCTION public.word_similarity_op(text, text)
- RETURNS boolean
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity_op$function$
-;
-
-
--- DROP TYPE gtrgm;
-
-CREATE TYPE gtrgm (
-	INPUT = gtrgm_in,
-	OUTPUT = gtrgm_out,
-	ALIGNMENT = 4,
-	STORAGE = plain,
-	CATEGORY = U,
-	DELIMITER = ',');
-
--- DROP SEQUENCE public.perfil_id_seq;
-
-CREATE SEQUENCE public.perfil_id_seq
-	INCREMENT BY 1
-	MINVALUE 1
-	MAXVALUE 9223372036854775807
-	START 1
-	CACHE 1
-	NO CYCLE;
--- DROP SEQUENCE public.versao_id_seq;
-
-CREATE SEQUENCE public.versao_id_seq
-	INCREMENT BY 1
-	MINVALUE 1
-	MAXVALUE 9223372036854775807
-	START 1
-	CACHE 1
-	NO CYCLE;-- public.citem definition
-
--- Drop table
-
--- DROP TABLE public.citem;
-
-CREATE TABLE public.citem (
-	id varchar(36) NOT NULL,
-	concorrente varchar(255) NULL,
-	cotacao_id varchar(255) NULL,
-	total float8 NULL,
-	CONSTRAINT citem_pkey PRIMARY KEY (id)
-);
-
-
--- public.citemdetalhado definition
-
--- Drop table
-
--- DROP TABLE public.citemdetalhado;
-
-CREATE TABLE public.citemdetalhado (
-	id varchar(36) NOT NULL,
-	concorrente varchar(255) NULL,
-	cotacao_id varchar(255) NULL,
-	ean varchar(255) NULL,
-	nome varchar(255) NULL,
-	quantidade float8 NOT NULL,
-	total float8 NOT NULL,
-	url varchar(255) NULL,
-	valor float8 NOT NULL,
-	CONSTRAINT citemdetalhado_pkey PRIMARY KEY (id)
-);
-
-
--- public.ean_ref definition
-
--- Drop table
-
--- DROP TABLE public.ean_ref;
-
-CREATE TABLE public.ean_ref (
-	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
-	ean varchar(10240) NULL,
-	nome varchar(10240) NULL
-);
-
-
--- public.generico_grupo definition
-
--- Drop table
-
--- DROP TABLE public.generico_grupo;
-
-CREATE TABLE public.generico_grupo (
-	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
-	grupo varchar(255) NULL,
-	nome varchar(255) NULL,
-	CONSTRAINT generico_grupo_un UNIQUE (grupo)
-);
-
-
--- public.genericos_ref definition
-
--- Drop table
-
--- DROP TABLE public.genericos_ref;
-
-CREATE TABLE public.genericos_ref (
-	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
-	grupo varchar(255) NULL,
-	"name" varchar(10240) NULL,
-	ean varchar(255) NULL,
-	brand varchar(255) NULL,
-	nome_grupo varchar NULL
-);
-
-
--- public.ilpi definition
-
--- Drop table
-
--- DROP TABLE public.ilpi;
-
-CREATE TABLE public.ilpi (
-	id varchar(36) NOT NULL,
-	cnpj varchar(255) NULL,
-	email varchar(255) NULL,
-	nome varchar(255) NULL,
-	pessoacontato varchar(255) NULL,
-	telefone varchar(255) NULL,
-	CONSTRAINT ilpi_pkey PRIMARY KEY (id)
-);
-
-
--- public.product definition
-
--- Drop table
-
--- DROP TABLE public.product;
-
-CREATE TABLE public.product (
-	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
-	active_ingredient varchar(10240) NULL,
-	brand varchar(10240) NULL,
-	category varchar(10240) NULL,
-	contraindication varchar(10240) NULL,
-	created_date timestamp NOT NULL,
-	department _text NULL,
-	description varchar(10240) NULL,
-	ean varchar(255) NULL,
-	"implementation" varchar(255) NOT NULL,
-	indication varchar(10240) NULL,
-	"name" varchar(2048) NOT NULL,
-	photo bytea NULL,
-	pathimage varchar NULL,
-	price float4 NOT NULL,
-	related_products _text NULL,
-	retencao_receita varchar(255) NULL,
-	updated_date timestamp NOT NULL,
-	url varchar(10240) NOT NULL,
-	CONSTRAINT product_pkey PRIMARY KEY (id),
-	CONSTRAINT ukojskdxmdefkuhlt9i0389ehl7 UNIQUE (ean, implementation)
-);
-
-
--- public.product_ref definition
-
--- Drop table
-
--- DROP TABLE public.product_ref;
-
-CREATE TABLE public.product_ref (
-	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
-	"name" varchar(255) NULL,
-	ean varchar(255) NULL,
-	brand varchar(255) NULL,
-	grupo varchar(255) NULL,
-	category varchar(255) NULL,
-	description varchar(10240) NULL,
-	CONSTRAINT product_ref_pkey PRIMARY KEY (id)
-);
-
-
--- public.totalizadordto definition
-
--- Drop table
-
--- DROP TABLE public.totalizadordto;
-
-CREATE TABLE public.totalizadordto (
-	id varchar(36) NOT NULL,
-	total int4 NOT NULL,
-	CONSTRAINT totalizadordto_pkey PRIMARY KEY (id)
-);
-
-
--- public.totalizadormesdto definition
-
--- Drop table
-
--- DROP TABLE public.totalizadormesdto;
-
-CREATE TABLE public.totalizadormesdto (
-	id varchar(36) NOT NULL,
-	ano varchar(255) NULL,
-	mes varchar(255) NULL,
-	total int4 NOT NULL,
-	CONSTRAINT totalizadormesdto_pkey PRIMARY KEY (id)
-);
-
-
--- public.totalizadorporstatusdto definition
-
--- Drop table
-
--- DROP TABLE public.totalizadorporstatusdto;
-
-CREATE TABLE public.totalizadorporstatusdto (
-	id varchar(36) NOT NULL,
-	nome varchar(255) NULL,
-	status varchar(255) NULL,
-	total int4 NOT NULL,
-	CONSTRAINT totalizadorporstatusdto_pkey PRIMARY KEY (id)
-);
-
-
--- public.produtos_all_otimizado_ilpi_rj source
-
-CREATE MATERIALIZED VIEW public.produtos_all_otimizado_ilpi_rj
-TABLESPACE pg_default
-AS SELECT p.id,
-    p.contraindicacao,
-    p.descricao,
-    p.ean,
-    p.indicacao,
-    p.nome,
-    p.photo,
-    p.categoria_id,
-    p.marca_id,
-    p.photo_id,
-    p.departamento_id,
-    p.principioativo_id,
-    p.precomedio,
-    t.produto_tsv,
-    ''::text AS lojapromocao
-   FROM ( SELECT max(p_1.id) AS id,
-            max(p_1.contraindicacao) AS contraindicacao,
-            max(p_1.descricao) AS descricao,
-            p_1.ean,
-            max(p_1.indicacao) AS indicacao,
-            max(p_1.nome::text) AS nome,
-            max(p_1.photo) AS photo,
-            max(p_1.categoria_id) AS categoria_id,
-            max(p_1.marca_id) AS marca_id,
-            max(p_1.photo_id) AS photo_id,
-            max(p_1.departamento_id) AS departamento_id,
-            max(p_1.principioativo_id) AS principioativo_id,
-            max(p_1.precomedio) AS precomedio
-           FROM ( SELECT p_2.id,
-                    p_2.contraindicacao,
-                    p_2.descricao,
-                    p_2.ean,
-                    p_2.indicacao,
-                    p_2.nome,
-                    p_2.photo,
-                    p_2.categoria_id,
-                    p_2.marca_id,
-                    p_2.photo_id,
-                    p_2.departamento_id,
-                    p_2.principioativo_id,
-                    p_2.precomedio
-                   FROM ( SELECT max(pr.id::text) AS id,
-                            max(pr.contraindicacao::text) AS contraindicacao,
-                            max(pr.descricao::text) AS descricao,
-                            pr.ean,
-                            max(pr.indicacao::text) AS indicacao,
-                            pr.nome,
-                            length(pr.nome::text) AS length,
-                            ''::text AS photo,
-                            max(pr.categoria_id::text) AS categoria_id,
-                            max(pr.marca_id::text) AS marca_id,
-                            max(pr.photo_id::text) AS photo_id,
-                            max(pr.departamento_id::text) AS departamento_id,
-                            max(pr.principioativo_id::text) AS principioativo_id,
-                            min(NULLIF(pc_1.valor, 0::double precision)) AS precomedio
-                           FROM afarma.produtocrawler pr,
-                            afarma.produtoconcorrente pc_1
-                          WHERE pr.ean::text = pc_1.ean::text AND NOT (pr.ean::text IN ( SELECT DISTINCT gr.ean
-                                   FROM genericos_ref gr))
-                          GROUP BY pr.ean, pr.nome) p_2,
-                    ( SELECT pc_1.ean,
-                            max(length(pc_1.nome::text)) AS max
-                           FROM afarma.produtocrawler pc_1
-                          GROUP BY pc_1.ean) l,
-                    ( SELECT DISTINCT e_1.ean
-                           FROM ean_ref e_1
-                          WHERE e_1.ean IS NOT NULL AND e_1.ean::text <> 'DIVERSOS'::text) e
-                  WHERE l.max = p_2.length AND l.ean::text = p_2.ean::text AND e.ean::text = p_2.ean::text
-                  GROUP BY p_2.id, p_2.contraindicacao, p_2.descricao, p_2.ean, p_2.indicacao, p_2.nome, p_2.photo, p_2.categoria_id, p_2.marca_id, p_2.photo_id, p_2.departamento_id, p_2.principioativo_id, p_2.precomedio
-                UNION ALL
-                 SELECT max(pr.id::text) AS id,
-                    max(pr.contraindicacao::text) AS max,
-                    max(pr.descricao::text) AS max,
-                    max(pr.ean::text) AS max,
-                    max(pr.indicacao::text) AS max,
-                    gg.nome,
-                    ''::text AS photo,
-                    max(pr.categoria_id::text) AS max,
-                    max(pr.marca_id::text) AS max,
-                    '69d460dc-c484-4cf6-b18b-3bd102acfd7a'::text AS photo_id,
-                    max(pr.departamento_id::text) AS max,
-                    max(pr.principioativo_id::text) AS max,
-                    min(NULLIF(pc_1.valor, 0::double precision)) AS precomedio
-                   FROM afarma.produtocrawler pr,
-                    generico_grupo gg,
-                    genericos_ref gr,
-                    afarma.produtoconcorrente pc_1
-                  WHERE pr.ean::text = pc_1.ean::text AND pr.ean::text = gr.ean::text AND gr.grupo::text = gg.grupo::text AND (pr.ean::text IN ( SELECT DISTINCT gr_1.ean
-                           FROM genericos_ref gr_1))
-                  GROUP BY gg.nome) p_1,
-            afarma.produtoconcorrente pc
-          WHERE p_1.ean::text = pc.ean::text AND p_1.precomedio IS NOT NULL AND p_1.ean::text <> '7896026640619'::text AND (pc.concorrente_id::text IN ( SELECT ce.concorrente_id
-                   FROM afarma.concorrentes_estados ce
-                  WHERE ce.uf::text = 'RJ'::text))
-          GROUP BY p_1.ean) p
-     LEFT JOIN ( SELECT p_1.id,
-            p_1.produto_tsv
-           FROM afarma.produtocrawler p_1) t ON t.id::text = p.id
-WITH DATA;
-
-
--- public.produtos_all_otimizado_rj source
-
-CREATE MATERIALIZED VIEW public.produtos_all_otimizado_rj
-TABLESPACE pg_default
-AS SELECT b.id,
-    b.nome,
-    b.ean,
-    b.photo_id,
-    b.descricao,
-    b.precomedio1,
-    b.lojapromocao,
-    b.categoria_id,
-    b.marca_id,
-    b.departamento_id,
-    b.principioativo_id,
-    b.grupo_id,
-    b.indicacao,
-    b.contraindicacao,
-    p.produto_tsv,
-    min(NULLIF(pc.valor, 0::double precision)) AS precomedio
-   FROM ( SELECT p_1.id,
-            p_1.nome,
-            p_1.ean,
-            p_1.photo_id,
-            p_1.descricao,
-            p_1.precomedio AS precomedio1,
-            p_1.lojapromocao,
-            ( SELECT d.id
-                   FROM afarma.dominio d,
-                    afarma.tipodominio t
-                  WHERE d.tipo_id::text = t.id::text AND d.nome::text = 'N√O IDENTIFICADO'::text AND t.nome::text = 'CATEGORIA'::text) AS categoria_id,
-            ( SELECT d.id
-                   FROM afarma.dominio d,
-                    afarma.tipodominio t
-                  WHERE d.tipo_id::text = t.id::text AND d.nome::text = 'N√O IDENTIFICADO'::text AND t.nome::text = 'MARCA'::text) AS marca_id,
-            ( SELECT d.id
-                   FROM afarma.dominio d,
-                    afarma.tipodominio t
-                  WHERE d.tipo_id::text = t.id::text AND d.nome::text = 'N√O IDENTIFICADO'::text AND t.nome::text = 'DEPARTAMENTO'::text) AS departamento_id,
-            ( SELECT d.id
-                   FROM afarma.dominio d,
-                    afarma.tipodominio t
-                  WHERE d.tipo_id::text = t.id::text AND d.nome::text = 'N√O IDENTIFICADO'::text AND t.nome::text = 'PRINCIPIO ATIVO'::text) AS principioativo_id,
-            ( SELECT d.id
-                   FROM afarma.dominio d,
-                    afarma.tipodominio t
-                  WHERE d.tipo_id::text = t.id::text AND d.nome::text = 'N√O IDENTIFICADO'::text AND t.nome::text = 'GRUPO'::text) AS grupo_id,
-            '-'::character varying AS indicacao,
-            '-'::character varying AS contraindicacao
-           FROM afarma.produto p_1
-          WHERE p_1.descricao::text <> 'GENERICO'::text
-          GROUP BY p_1.id, p_1.nome, p_1.ean, p_1.photo_id, p_1.descricao, p_1.contraindicacao, p_1.indicacao, p_1.precomedio, p_1.lojapromocao
-        UNION ALL
-         SELECT max(p_1.id::text) AS max,
-            ( SELECT d.nome
-                   FROM afarma.dominio d
-                  WHERE p_1.grupo_id::text = d.id::text) AS grupo,
-            max(p_1.ean::text) AS max,
-            max(p_1.photo_id::text) AS max,
-            max(p_1.descricao::text) AS max,
-                CASE
-                    WHEN avg(NULLIF(pc_1.valor, 0::double precision)) IS NULL THEN 0::double precision
-                    ELSE avg(NULLIF(pc_1.valor, 0::double precision))
-                END AS avg,
-            p_1.lojapromocao,
-            ( SELECT d.id
-                   FROM afarma.dominio d,
-                    afarma.tipodominio t
-                  WHERE d.tipo_id::text = t.id::text AND d.nome::text = 'N√O IDENTIFICADO'::text AND t.nome::text = 'CATEGORIA'::text) AS categoria_id,
-            ( SELECT d.id
-                   FROM afarma.dominio d,
-                    afarma.tipodominio t
-                  WHERE d.tipo_id::text = t.id::text AND d.nome::text = 'N√O IDENTIFICADO'::text AND t.nome::text = 'MARCA'::text) AS marca_id,
-            ( SELECT d.id
-                   FROM afarma.dominio d,
-                    afarma.tipodominio t
-                  WHERE d.tipo_id::text = t.id::text AND d.nome::text = 'N√O IDENTIFICADO'::text AND t.nome::text = 'DEPARTAMENTO'::text) AS departamento_id,
-            ( SELECT d.id
-                   FROM afarma.dominio d,
-                    afarma.tipodominio t
-                  WHERE d.tipo_id::text = t.id::text AND d.nome::text = 'N√O IDENTIFICADO'::text AND t.nome::text = 'PRINCIPIO ATIVO'::text) AS principioativo_id,
-            ( SELECT d.id
-                   FROM afarma.dominio d,
-                    afarma.tipodominio t
-                  WHERE d.tipo_id::text = t.id::text AND d.nome::text = 'N√O IDENTIFICADO'::text AND t.nome::text = 'GRUPO'::text) AS grupo_id,
-            '-'::character varying AS indicacao,
-            '-'::character varying AS contraindicacao
-           FROM afarma.produto p_1,
-            afarma.produtoconcorrente pc_1
-          WHERE pc_1.ean::text = p_1.ean::text AND p_1.descricao::text = 'GENERICO'::text
-          GROUP BY (( SELECT d.nome
-                   FROM afarma.dominio d
-                  WHERE p_1.grupo_id::text = d.id::text)), p_1.lojapromocao) b,
-    afarma.produto p,
-    afarma.produtoconcorrente pc,
-    afarma.concorrente c,
-    afarma.concorrentes_estados ce
-  WHERE p.ean::text = b.ean::text AND b.precomedio1 <> 0::double precision AND pc.ean::text = p.ean::text AND pc.valor > 0::double precision AND pc.concorrente_id::text = c.id::text AND c.id::text = ce.concorrente_id::text AND ce.uf::text = 'RJ'::text
-  GROUP BY b.id, b.nome, b.ean, b.photo_id, b.descricao, b.contraindicacao, b.indicacao, b.precomedio1, b.lojapromocao, b.categoria_id, b.marca_id, b.departamento_id, b.principioativo_id, b.grupo_id, p.produto_tsv
-  ORDER BY b.nome
-WITH DATA;
-
-
-
-CREATE OR REPLACE FUNCTION public.dblink(text, text, boolean)
- RETURNS SETOF record
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_record$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink(text)
- RETURNS SETOF record
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_record$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink(text, boolean)
- RETURNS SETOF record
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_record$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink(text, text)
- RETURNS SETOF record
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_record$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_build_sql_delete(text, int2vector, integer, text[])
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_build_sql_delete$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_build_sql_insert(text, int2vector, integer, text[], text[])
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_build_sql_insert$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_build_sql_update(text, int2vector, integer, text[], text[])
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_build_sql_update$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_cancel_query(text)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_cancel_query$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_close(text)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_close$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_close(text, boolean)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_close$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_close(text, text)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_close$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_close(text, text, boolean)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_close$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_connect(text, text)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_connect$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_connect(text)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_connect$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_connect_u(text, text)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT SECURITY DEFINER
-AS '$libdir/dblink', $function$dblink_connect$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_connect_u(text)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT SECURITY DEFINER
-AS '$libdir/dblink', $function$dblink_connect$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_current_query()
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED
-AS '$libdir/dblink', $function$dblink_current_query$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_disconnect(text)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_disconnect$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_disconnect()
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_disconnect$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_error_message(text)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_error_message$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_exec(text, text, boolean)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_exec$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_exec(text)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_exec$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_exec(text, text)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_exec$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_exec(text, boolean)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_exec$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_fdw_validator(options text[], catalog oid)
- RETURNS void
- LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/dblink', $function$dblink_fdw_validator$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_fetch(text, text, integer, boolean)
- RETURNS SETOF record
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_fetch$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_fetch(text, integer)
- RETURNS SETOF record
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_fetch$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_fetch(text, integer, boolean)
- RETURNS SETOF record
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_fetch$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_fetch(text, text, integer)
- RETURNS SETOF record
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_fetch$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_get_connections()
- RETURNS text[]
- LANGUAGE c
- PARALLEL RESTRICTED
-AS '$libdir/dblink', $function$dblink_get_connections$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_get_notify(OUT notify_name text, OUT be_pid integer, OUT extra text)
- RETURNS SETOF record
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_get_notify$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_get_notify(conname text, OUT notify_name text, OUT be_pid integer, OUT extra text)
- RETURNS SETOF record
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_get_notify$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_get_pkey(text)
- RETURNS SETOF dblink_pkey_results
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_get_pkey$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_get_result(text)
- RETURNS SETOF record
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_get_result$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_get_result(text, boolean)
- RETURNS SETOF record
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_get_result$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_is_busy(text)
- RETURNS integer
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_is_busy$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_open(text, text)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_open$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_open(text, text, boolean)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_open$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_open(text, text, text)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_open$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_open(text, text, text, boolean)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_open$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_send_query(text, text)
- RETURNS integer
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_send_query$function$
-;
-
-CREATE OR REPLACE FUNCTION public.gin_extract_query_trgm(text, internal, smallint, internal, internal, internal, internal)
- RETURNS internal
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gin_extract_query_trgm$function$
-;
-
-CREATE OR REPLACE FUNCTION public.gin_extract_value_trgm(text, internal)
- RETURNS internal
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gin_extract_value_trgm$function$
-;
-
-CREATE OR REPLACE FUNCTION public.gin_trgm_consistent(internal, smallint, text, integer, internal, internal, internal, internal)
- RETURNS boolean
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gin_trgm_consistent$function$
-;
-
-CREATE OR REPLACE FUNCTION public.gin_trgm_triconsistent(internal, smallint, text, integer, internal, internal, internal)
- RETURNS "char"
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gin_trgm_triconsistent$function$
-;
-
-CREATE OR REPLACE FUNCTION public.gtrgm_compress(internal)
- RETURNS internal
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_compress$function$
-;
-
-CREATE OR REPLACE FUNCTION public.gtrgm_consistent(internal, text, smallint, oid, internal)
- RETURNS boolean
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_consistent$function$
-;
-
-CREATE OR REPLACE FUNCTION public.gtrgm_decompress(internal)
- RETURNS internal
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_decompress$function$
-;
-
-CREATE OR REPLACE FUNCTION public.gtrgm_distance(internal, text, smallint, oid, internal)
- RETURNS double precision
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_distance$function$
-;
-
-CREATE OR REPLACE FUNCTION public.gtrgm_in(cstring)
- RETURNS gtrgm
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_in$function$
-;
-
-CREATE OR REPLACE FUNCTION public.gtrgm_options(internal)
- RETURNS void
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE
-AS '$libdir/pg_trgm', $function$gtrgm_options$function$
-;
-
-CREATE OR REPLACE FUNCTION public.gtrgm_out(gtrgm)
- RETURNS cstring
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_out$function$
-;
-
-CREATE OR REPLACE FUNCTION public.gtrgm_penalty(internal, internal, internal)
- RETURNS internal
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_penalty$function$
-;
-
-CREATE OR REPLACE FUNCTION public.gtrgm_picksplit(internal, internal)
- RETURNS internal
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_picksplit$function$
-;
-
-CREATE OR REPLACE FUNCTION public.gtrgm_same(gtrgm, gtrgm, internal)
- RETURNS internal
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_same$function$
-;
-
-CREATE OR REPLACE FUNCTION public.gtrgm_union(internal, internal)
- RETURNS gtrgm
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$gtrgm_union$function$
-;
-
-CREATE OR REPLACE FUNCTION public.set_limit(real)
- RETURNS real
- LANGUAGE c
- STRICT
-AS '$libdir/pg_trgm', $function$set_limit$function$
-;
-
-CREATE OR REPLACE FUNCTION public.show_limit()
- RETURNS real
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$show_limit$function$
-;
-
-CREATE OR REPLACE FUNCTION public.show_trgm(text)
- RETURNS text[]
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$show_trgm$function$
-;
-
-CREATE OR REPLACE FUNCTION public.similarity(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$similarity$function$
-;
-
-CREATE OR REPLACE FUNCTION public.similarity_dist(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$similarity_dist$function$
-;
-
-CREATE OR REPLACE FUNCTION public.similarity_op(text, text)
- RETURNS boolean
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$similarity_op$function$
-;
-
-CREATE OR REPLACE FUNCTION public.strict_word_similarity(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$strict_word_similarity$function$
-;
-
-CREATE OR REPLACE FUNCTION public.strict_word_similarity_commutator_op(text, text)
- RETURNS boolean
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$strict_word_similarity_commutator_op$function$
-;
-
-CREATE OR REPLACE FUNCTION public.strict_word_similarity_dist_commutator_op(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$strict_word_similarity_dist_commutator_op$function$
-;
-
-CREATE OR REPLACE FUNCTION public.strict_word_similarity_dist_op(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$strict_word_similarity_dist_op$function$
-;
-
-CREATE OR REPLACE FUNCTION public.strict_word_similarity_op(text, text)
- RETURNS boolean
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$strict_word_similarity_op$function$
-;
-
-CREATE OR REPLACE FUNCTION public.unaccent(regdictionary, text)
- RETURNS text
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/unaccent', $function$unaccent_dict$function$
-;
-
-CREATE OR REPLACE FUNCTION public.unaccent(text)
- RETURNS text
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/unaccent', $function$unaccent_dict$function$
-;
-
-CREATE OR REPLACE FUNCTION public.unaccent_init(internal)
- RETURNS internal
- LANGUAGE c
- PARALLEL SAFE
-AS '$libdir/unaccent', $function$unaccent_init$function$
-;
-
-CREATE OR REPLACE FUNCTION public.unaccent_lexize(internal, internal, internal, internal)
- RETURNS internal
- LANGUAGE c
- PARALLEL SAFE
-AS '$libdir/unaccent', $function$unaccent_lexize$function$
-;
-
-CREATE OR REPLACE FUNCTION public.usuario_codigo_ind()
- RETURNS trigger
- LANGUAGE plpgsql
-AS $function$
-
-BEGIN
-
-
-
-     
-UPDATE
-    afarma.usuario 
-SET
-    codigoind=ci.concat
-FROM
-   (select cod.identificador, concat(translate((lower(left(u.nome,((strpos(u.nome, ' '))-1)))), '·‡‚„‰Âaaa¡¬√ƒ≈AAA¿ÈËÍÎeeeeeEEE…EE»ÏÌÓÔÏiiiÃÕŒœÃIIIÛÙıˆoooÚ“”‘’÷OOO˘˙˚¸uuuuŸ⁄€‹UUUUÁ«Ò—˝›',
-'aaaaaaaaaAAAAAAAAAeeeeeeeeeEEEEEEEiiiiiiiiIIIIIIIIooooooooOOOOOOOOuuuuuuuuUUUUUUUUcCnNyY'),cod.codigo)
-from
-(select max(i.id) as "identificador", (max(cast(i.substring as integer))+1) as "codigo" from 
- (select u.id, u.nome,
- translate((lower(left(u.nome,((strpos(u.nome, ' '))-1)))), '·‡‚„‰Âaaa¡¬√ƒ≈AAA¿ÈËÍÎeeeeeEEE…EE»ÏÌÓÔÏiiiÃÕŒœÃIIIÛÙıˆoooÚ“”‘’÷OOO˘˙˚¸uuuuŸ⁄€‹UUUUÁ«Ò—˝›',
-'aaaaaaaaaAAAAAAAAAeeeeeeeeeEEEEEEEiiiiiiiiIIIIIIIIooooooooOOOOOOOOuuuuuuuuUUUUUUUUcCnNyY'),
- u.codigoind, substring(u.codigoind FROM '[0-9]+') from usuario u
- where u.perfilid='2'
- order by id asc) i) cod, usuario u where u.id=cod.identificador and (u.codigoind isnull or u.codigoind='' or u.codigoind=null)) ci 
-WHERE
-    id = ci.identificador;
-
-
-
-RETURN NEW;
-
-END;
-
-$function$
-;
-
-
-
-
-
-----------------------------------@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-
-
-
 -- DROP SCHEMA afarma;
 
 CREATE SCHEMA afarma AUTHORIZATION postgres;
@@ -1090,54 +6,6 @@ CREATE SCHEMA afarma AUTHORIZATION postgres;
 -- Drop table
 
 -- DROP TABLE afarma.banner;
-
-
-
--- DROP TYPE afarma.cotacaotitem;
-
-CREATE TYPE afarma.cotacaotitem AS (
-	id varchar,
-	concorrente varchar,
-	cotacao_id varchar,
-	total numeric(10,2));
-
--- DROP TYPE afarma.ctitem;
-
-CREATE TYPE afarma.ctitem AS (
-	id varchar,
-	loja varchar,
-	nome varchar,
-	ean varchar,
-	quantidade int4,
-	valor numeric(10,2),
-	precomedio numeric(10,8),
-	total numeric(10,2));
-
--- DROP TYPE afarma.ctitemdetalhado;
-
-CREATE TYPE afarma.ctitemdetalhado AS (
-	id varchar,
-	nome varchar,
-	concorrente varchar,
-	cotacao_id varchar,
-	ean varchar,
-	quantidade int4,
-	valor numeric(10,5),
-	total numeric(10,5));
-
--- DROP TYPE afarma.ctitemdetalhadonovo;
-
-CREATE TYPE afarma.ctitemdetalhadonovo AS (
-	id varchar,
-	nome varchar,
-	concorrente varchar,
-	cotacao_id varchar,
-	ean varchar,
-	quantidade int4,
-	url varchar,
-	valor numeric(10,5),
-	total numeric(10,5));
-
 
 CREATE TABLE afarma.banner (
 	id varchar(36) NOT NULL,
@@ -1505,6 +373,26 @@ CREATE TABLE afarma.principioativo (
 	id varchar(36) NOT NULL,
 	descricao varchar(255) NULL,
 	CONSTRAINT principioativo_pkey PRIMARY KEY (id)
+);
+
+
+-- afarma.produto_afarma definition
+
+-- Drop table
+
+-- DROP TABLE afarma.produto_afarma;
+
+CREATE TABLE afarma.produto_afarma (
+	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
+	ean varchar(10240) NULL,
+	nome varchar(10240) NULL,
+	valor float8 NOT NULL,
+	photo_id varchar(36) NULL,
+	ean_similar varchar(10240) NULL,
+	active bool NOT NULL DEFAULT true,
+	produto_tsv tsvector NULL,
+	CONSTRAINT produtoafarma_pkey PRIMARY KEY (id),
+	CONSTRAINT produtoafarma_unique UNIQUE (ean)
 );
 
 
@@ -2683,6 +1571,335 @@ END;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION afarma.cotacaodetalhado(cotid character varying)
+ RETURNS SETOF afarma.ctitemdetalhadonovo
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      itens afarma.ctitemdetalhadoNOVO%ROWTYPE;
+BEGIN
+
+ 	FOR itens in
+
+
+	SELECT cast(uuid_generate_v4() as varchar) as id
+	,i.*
+FROM (
+	SELECT (
+			CASE 
+				WHEN po.nome isnull
+					THEN gr.nome_grupo
+				ELSE po.nome
+				END
+			) AS nome
+		,i.*
+	FROM (
+		(
+			SELECT i.*
+				,(i.valor * i.quantidade) AS total
+			FROM (
+				SELECT (
+						CASE 
+							WHEN i.valor = i.valorminimo
+								THEN CONCAT (
+										i.concorrente
+										,'*'
+										)
+							ELSE i.concorrente
+							END
+						) AS concorrente
+					,i.cotacao
+					,i.ean
+					,i.quantidade
+					,i.url
+					,(
+						CASE 
+							WHEN i.valor isnull
+								THEN i.precomedio
+							WHEN i.valor < i.segundomenor * 0.80
+								THEN i.segundomenor
+							ELSE i.valor
+							END
+						) AS valor
+				FROM (
+					SELECT i.*
+						,m.valorminimo
+					FROM (
+						SELECT i.*
+							,p.segundomenor
+						FROM (
+							SELECT i.*
+								,po.precomedio
+							FROM (
+								SELECT i.*
+									,pc.valor, pc.url
+								FROM (
+									SELECT *
+									FROM (
+										SELECT c.concorrente
+											,c.id AS concorrente_id
+										FROM afarma.concorrentes_estados ce
+											,afarma.concorrente c
+										WHERE c.id = ce.concorrente_id
+											AND ce.uf = (
+												SELECT r.uf
+												FROM afarma.registrocotacao r
+												WHERE r.id = cotid
+												)
+										) c
+									CROSS JOIN (
+										SELECT i.cotacao
+											,(
+												CASE 
+													WHEN i.menor isnull
+														THEN i.ean
+													ELSE i.menor
+													END
+												) AS ean
+											,i.quantidade
+										FROM (
+											SELECT *
+											FROM (
+												SELECT i.ean
+													,i.cotacao
+													,i.quantidade
+												FROM afarma.itenscot i
+												WHERE i.cotacao = cotid
+												) i
+											CROSS JOIN lateral afarma.menor_preco_grupo_crawler(i.ean) AS menor
+											) i
+										) i
+									) i
+								LEFT JOIN afarma.produtoconcorrente pc ON pc.ean = i.ean
+									AND pc.concorrente_id = i.concorrente_id
+								) i
+							LEFT JOIN (
+								SELECT pc.ean
+									,avg(nullif(pc.valor, 0)) AS precomedio
+								FROM afarma.produtoconcorrente pc
+								GROUP BY pc.ean
+								) po ON po.ean = i.ean
+							) i
+						LEFT JOIN (
+							SELECT p.ean
+								,min(p.valor) AS segundomenor
+							FROM (
+								SELECT pc.ean
+									,pc.valor
+									,p.min
+								FROM afarma.produtoconcorrente pc
+								LEFT JOIN (
+									SELECT pc.ean
+										,min(pc.valor)
+									FROM afarma.produtoconcorrente pc
+									GROUP BY pc.ean
+									) p ON pc.ean = p.ean
+								) p
+							WHERE p.valor > p.min
+							GROUP BY p.ean
+							) p ON p.ean = i.ean
+						) i
+					LEFT JOIN (
+						SELECT i.cotacao
+							,i.ean
+							,min(i.valor) AS valorminimo
+						FROM (
+							SELECT i.concorrente
+								,i.cotacao
+								,i.ean
+								,i.quantidade
+								,(
+									CASE 
+										WHEN i.valor isnull
+											THEN i.precomedio
+										WHEN i.valor < i.segundomenor * 0.80
+											THEN i.segundomenor
+										ELSE i.valor
+										END
+									) AS valor
+							FROM (
+								SELECT i.*
+									,p.segundomenor
+								FROM (
+									SELECT i.*
+										,po.precomedio
+									FROM (
+										SELECT i.*
+											,pc.valor
+										FROM (
+											SELECT *
+											FROM (
+												SELECT c.concorrente
+													,c.id AS concorrente_id
+												FROM afarma.concorrentes_estados ce
+													,afarma.concorrente c
+												WHERE c.id = ce.concorrente_id
+													AND ce.uf = (
+														SELECT r.uf
+														FROM afarma.registrocotacao r
+														WHERE r.id = cotid
+														)
+												) c
+											CROSS JOIN (
+												SELECT i.cotacao
+													,(
+														CASE 
+															WHEN i.menor isnull
+																THEN i.ean
+															ELSE i.menor
+															END
+														) AS ean
+													,i.quantidade
+												FROM (
+													SELECT *
+													FROM (
+														SELECT i.ean
+															,i.cotacao
+															,i.quantidade
+														FROM afarma.itenscot i
+														WHERE i.cotacao = cotid
+														) i
+													CROSS JOIN lateral afarma.menor_preco_grupo_crawler(i.ean) AS menor
+													) i
+												) i
+											) i
+										LEFT JOIN afarma.produtoconcorrente pc ON pc.ean = i.ean
+											AND pc.concorrente_id = i.concorrente_id
+										) i
+									LEFT JOIN (
+										SELECT pc.ean
+											,avg(nullif(pc.valor, 0)) AS precomedio
+										FROM afarma.produtoconcorrente pc
+										GROUP BY pc.ean
+										) po ON po.ean = i.ean
+									) i
+								LEFT JOIN (
+									SELECT p.ean
+										,min(p.valor) AS segundomenor
+									FROM (
+										SELECT pc.ean
+											,pc.valor
+											,p.min
+										FROM afarma.produtoconcorrente pc
+										LEFT JOIN (
+											SELECT pc.ean
+												,min(pc.valor)
+											FROM afarma.produtoconcorrente pc
+											GROUP BY pc.ean
+											) p ON pc.ean = p.ean
+										) p
+									WHERE p.valor > p.min
+									GROUP BY p.ean
+									) p ON p.ean = i.ean
+								) i
+							) i
+						GROUP BY i.cotacao
+							,i.ean
+						) m ON m.ean = i.ean
+					) i
+				) i
+			)
+		
+		UNION ALL
+		
+		(
+			SELECT i.*
+				,((i.precomedio/*-(descontoitem)*/) * i.quantidade)
+			FROM (
+				SELECT 'aFarma' AS loja
+					,i.cotacao
+					,i.ean
+					,i.quantidade
+					, 'https://www.afarma.app.br' as url
+					,po.precomedio
+				FROM (
+					SELECT i.*
+						,pc.valor, pc.url
+					FROM (
+						SELECT *
+						FROM (
+							SELECT c.concorrente
+								,c.id AS concorrente_id
+							FROM afarma.concorrentes_estados ce
+								,afarma.concorrente c
+							WHERE c.id = ce.concorrente_id
+								AND ce.uf = (
+									SELECT r.uf
+									FROM afarma.registrocotacao r
+									WHERE r.id = cotid
+									)
+							) c
+						CROSS JOIN (
+							SELECT i.cotacao
+								,(
+									CASE 
+										WHEN i.menor isnull
+											THEN i.ean
+										ELSE i.menor
+										END
+									) AS ean
+								,i.quantidade
+							FROM (
+								SELECT *
+								FROM (
+									SELECT i.ean
+										,i.cotacao
+										,i.quantidade
+									FROM afarma.itenscot i
+									WHERE i.cotacao = cotid
+									) i
+								CROSS JOIN lateral afarma.menor_preco_grupo_crawler(i.ean) AS menor
+								) i
+							) i
+						) i
+					LEFT JOIN afarma.produtoconcorrente pc ON pc.ean = i.ean
+						AND pc.concorrente_id = i.concorrente_id
+					) i
+				LEFT JOIN (
+					SELECT pc.ean
+						,avg(nullif(pc.valor, 0)) AS precomedio
+					FROM afarma.produtoconcorrente pc
+					GROUP BY pc.ean
+					) po ON po.ean = i.ean
+				) i
+			GROUP BY i.loja
+				,i.cotacao
+				,i.ean
+				,i.quantidade
+				,i.url
+				,i.precomedio
+			)
+		) i
+	LEFT JOIN (
+		SELECT max(po.nome) AS nome
+			,po.ean
+		FROM PUBLIC.produtos_all_otimizado_ilpi_rj po
+		GROUP BY po.ean
+		) po ON po.ean = i.ean
+	LEFT JOIN PUBLIC.genericos_ref gr ON gr.ean = i.ean
+	) i
+GROUP BY i.nome
+	,i.concorrente
+	,i.cotacao
+	,i.ean
+	,i.quantidade
+	,i.url
+	,i.valor
+	,i.total
+	
+		loop
+		RETURN NEXT itens;
+	
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
+
 CREATE OR REPLACE FUNCTION afarma.cotacaoiai(cotid character varying)
  RETURNS SETOF afarma.cotacaotitem
  LANGUAGE plpgsql
@@ -3324,4 +2541,1092 @@ into generico_ean;
 end;
 $function$
 ;
+
+
+-- DROP SCHEMA public;
+
+CREATE SCHEMA public AUTHORIZATION postgres;
+
+-- DROP TYPE gtrgm;
+
+CREATE TYPE gtrgm (
+	INPUT = gtrgm_in,
+	OUTPUT = gtrgm_out,
+	ALIGNMENT = 4,
+	STORAGE = plain,
+	CATEGORY = U,
+	DELIMITER = ',');
+
+-- DROP SEQUENCE public.perfil_id_seq;
+
+CREATE SEQUENCE public.perfil_id_seq
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 9223372036854775807
+	START 1
+	CACHE 1
+	NO CYCLE;
+-- DROP SEQUENCE public.versao_id_seq;
+
+CREATE SEQUENCE public.versao_id_seq
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 9223372036854775807
+	START 1
+	CACHE 1
+	NO CYCLE;-- public.citem definition
+
+-- Drop table
+
+-- DROP TABLE public.citem;
+
+CREATE TABLE public.citem (
+	id varchar(36) NOT NULL,
+	concorrente varchar(255) NULL,
+	cotacao_id varchar(255) NULL,
+	total float8 NULL,
+	CONSTRAINT citem_pkey PRIMARY KEY (id)
+);
+
+
+-- public.citemdetalhado definition
+
+-- Drop table
+
+-- DROP TABLE public.citemdetalhado;
+
+CREATE TABLE public.citemdetalhado (
+	id varchar(36) NOT NULL,
+	concorrente varchar(255) NULL,
+	cotacao_id varchar(255) NULL,
+	ean varchar(255) NULL,
+	nome varchar(255) NULL,
+	quantidade float8 NOT NULL,
+	total float8 NOT NULL,
+	url varchar(255) NULL,
+	valor float8 NOT NULL,
+	CONSTRAINT citemdetalhado_pkey PRIMARY KEY (id)
+);
+
+
+-- public.ean_ref definition
+
+-- Drop table
+
+-- DROP TABLE public.ean_ref;
+
+CREATE TABLE public.ean_ref (
+	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
+	ean varchar(10240) NULL,
+	nome varchar(10240) NULL
+);
+
+
+-- public.generico_grupo definition
+
+-- Drop table
+
+-- DROP TABLE public.generico_grupo;
+
+CREATE TABLE public.generico_grupo (
+	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
+	grupo varchar(255) NULL,
+	nome varchar(255) NULL,
+	CONSTRAINT generico_grupo_un UNIQUE (grupo)
+);
+
+
+-- public.genericos_ref definition
+
+-- Drop table
+
+-- DROP TABLE public.genericos_ref;
+
+CREATE TABLE public.genericos_ref (
+	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
+	grupo varchar(255) NULL,
+	"name" varchar(10240) NULL,
+	ean varchar(255) NULL,
+	brand varchar(255) NULL,
+	nome_grupo varchar NULL
+);
+
+
+-- public.ilpi definition
+
+-- Drop table
+
+-- DROP TABLE public.ilpi;
+
+CREATE TABLE public.ilpi (
+	id varchar(36) NOT NULL,
+	cnpj varchar(255) NULL,
+	email varchar(255) NULL,
+	nome varchar(255) NULL,
+	pessoacontato varchar(255) NULL,
+	telefone varchar(255) NULL,
+	CONSTRAINT ilpi_pkey PRIMARY KEY (id)
+);
+
+
+-- public.product definition
+
+-- Drop table
+
+-- DROP TABLE public.product;
+
+CREATE TABLE public.product (
+	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
+	active_ingredient varchar(10240) NULL,
+	brand varchar(10240) NULL,
+	category varchar(10240) NULL,
+	contraindication varchar(10240) NULL,
+	created_date timestamp NOT NULL,
+	department _text NULL,
+	description varchar(10240) NULL,
+	ean varchar(255) NULL,
+	"implementation" varchar(255) NOT NULL,
+	indication varchar(10240) NULL,
+	"name" varchar(2048) NOT NULL,
+	photo bytea NULL,
+	pathimage varchar NULL,
+	price float4 NOT NULL,
+	related_products _text NULL,
+	retencao_receita varchar(255) NULL,
+	updated_date timestamp NOT NULL,
+	url varchar(10240) NOT NULL,
+	CONSTRAINT product_pkey PRIMARY KEY (id),
+	CONSTRAINT ukojskdxmdefkuhlt9i0389ehl7 UNIQUE (ean, implementation)
+);
+
+
+-- public.product_comparacao definition
+
+-- Drop table
+
+-- DROP TABLE public.product_comparacao;
+
+CREATE TABLE public.product_comparacao (
+	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
+	"name" varchar(10240) NULL,
+	ean varchar(255) NULL,
+	marca varchar(10240) NULL,
+	url varchar(10240) NULL,
+	"implementation" varchar(10240) NULL
+);
+
+
+-- public.product_ref definition
+
+-- Drop table
+
+-- DROP TABLE public.product_ref;
+
+CREATE TABLE public.product_ref (
+	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
+	"name" varchar(255) NULL,
+	ean varchar(255) NULL,
+	brand varchar(255) NULL,
+	grupo varchar(255) NULL,
+	category varchar(255) NULL,
+	description varchar(10240) NULL,
+	CONSTRAINT product_ref_pkey PRIMARY KEY (id)
+);
+
+
+-- public.totalizadordto definition
+
+-- Drop table
+
+-- DROP TABLE public.totalizadordto;
+
+CREATE TABLE public.totalizadordto (
+	id varchar(36) NOT NULL,
+	total int4 NOT NULL,
+	CONSTRAINT totalizadordto_pkey PRIMARY KEY (id)
+);
+
+
+-- public.totalizadormesdto definition
+
+-- Drop table
+
+-- DROP TABLE public.totalizadormesdto;
+
+CREATE TABLE public.totalizadormesdto (
+	id varchar(36) NOT NULL,
+	ano varchar(255) NULL,
+	mes varchar(255) NULL,
+	total int4 NOT NULL,
+	CONSTRAINT totalizadormesdto_pkey PRIMARY KEY (id)
+);
+
+
+-- public.totalizadorporstatusdto definition
+
+-- Drop table
+
+-- DROP TABLE public.totalizadorporstatusdto;
+
+CREATE TABLE public.totalizadorporstatusdto (
+	id varchar(36) NOT NULL,
+	nome varchar(255) NULL,
+	status varchar(255) NULL,
+	total int4 NOT NULL,
+	CONSTRAINT totalizadorporstatusdto_pkey PRIMARY KEY (id)
+);
+
+
+-- public.produtos_all_otimizado_ilpi_rj source
+
+CREATE MATERIALIZED VIEW public.produtos_all_otimizado_ilpi_rj
+TABLESPACE pg_default
+AS SELECT p.id,
+    p.contraindicacao,
+    p.descricao,
+    p.ean,
+    p.indicacao,
+    p.nome,
+    p.photo,
+    p.categoria_id,
+    p.marca_id,
+    p.photo_id,
+    p.departamento_id,
+    p.principioativo_id,
+    p.precomedio,
+    t.produto_tsv,
+    ''::text AS lojapromocao
+   FROM ( SELECT max(p_1.id) AS id,
+            max(p_1.contraindicacao) AS contraindicacao,
+            max(p_1.descricao) AS descricao,
+            p_1.ean,
+            max(p_1.indicacao) AS indicacao,
+            max(p_1.nome::text) AS nome,
+            max(p_1.photo) AS photo,
+            max(p_1.categoria_id) AS categoria_id,
+            max(p_1.marca_id) AS marca_id,
+            max(p_1.photo_id) AS photo_id,
+            max(p_1.departamento_id) AS departamento_id,
+            max(p_1.principioativo_id) AS principioativo_id,
+            max(p_1.precomedio) AS precomedio
+           FROM ( SELECT p_2.id,
+                    p_2.contraindicacao,
+                    p_2.descricao,
+                    p_2.ean,
+                    p_2.indicacao,
+                    p_2.nome,
+                    p_2.photo,
+                    p_2.categoria_id,
+                    p_2.marca_id,
+                    p_2.photo_id,
+                    p_2.departamento_id,
+                    p_2.principioativo_id,
+                    p_2.precomedio
+                   FROM ( SELECT max(pr.id::text) AS id,
+                            max(pr.contraindicacao::text) AS contraindicacao,
+                            max(pr.descricao::text) AS descricao,
+                            pr.ean,
+                            max(pr.indicacao::text) AS indicacao,
+                            pr.nome,
+                            length(pr.nome::text) AS length,
+                            ''::text AS photo,
+                            max(pr.categoria_id::text) AS categoria_id,
+                            max(pr.marca_id::text) AS marca_id,
+                            max(pr.photo_id::text) AS photo_id,
+                            max(pr.departamento_id::text) AS departamento_id,
+                            max(pr.principioativo_id::text) AS principioativo_id,
+                            min(NULLIF(pc_1.valor, 0::double precision)) AS precomedio
+                           FROM afarma.produtocrawler pr,
+                            afarma.produtoconcorrente pc_1
+                          WHERE pr.ean::text = pc_1.ean::text AND NOT (pr.ean::text IN ( SELECT DISTINCT gr.ean
+                                   FROM genericos_ref gr))
+                          GROUP BY pr.ean, pr.nome) p_2,
+                    ( SELECT pc_1.ean,
+                            max(length(pc_1.nome::text)) AS max
+                           FROM afarma.produtocrawler pc_1
+                          GROUP BY pc_1.ean) l,
+                    ( SELECT DISTINCT e_1.ean
+                           FROM ean_ref e_1
+                          WHERE e_1.ean IS NOT NULL AND e_1.ean::text <> 'DIVERSOS'::text) e
+                  WHERE l.max = p_2.length AND l.ean::text = p_2.ean::text AND e.ean::text = p_2.ean::text
+                  GROUP BY p_2.id, p_2.contraindicacao, p_2.descricao, p_2.ean, p_2.indicacao, p_2.nome, p_2.photo, p_2.categoria_id, p_2.marca_id, p_2.photo_id, p_2.departamento_id, p_2.principioativo_id, p_2.precomedio
+                UNION ALL
+                 SELECT max(pr.id::text) AS id,
+                    max(pr.contraindicacao::text) AS max,
+                    max(pr.descricao::text) AS max,
+                    max(pr.ean::text) AS max,
+                    max(pr.indicacao::text) AS max,
+                    gg.nome,
+                    ''::text AS photo,
+                    max(pr.categoria_id::text) AS max,
+                    max(pr.marca_id::text) AS max,
+                    '69d460dc-c484-4cf6-b18b-3bd102acfd7a'::text AS photo_id,
+                    max(pr.departamento_id::text) AS max,
+                    max(pr.principioativo_id::text) AS max,
+                    min(NULLIF(pc_1.valor, 0::double precision)) AS precomedio
+                   FROM afarma.produtocrawler pr,
+                    generico_grupo gg,
+                    genericos_ref gr,
+                    afarma.produtoconcorrente pc_1
+                  WHERE pr.ean::text = pc_1.ean::text AND pr.ean::text = gr.ean::text AND gr.grupo::text = gg.grupo::text AND (pr.ean::text IN ( SELECT DISTINCT gr_1.ean
+                           FROM genericos_ref gr_1))
+                  GROUP BY gg.nome) p_1,
+            afarma.produtoconcorrente pc
+          WHERE p_1.ean::text = pc.ean::text AND p_1.precomedio IS NOT NULL AND p_1.ean::text <> '7896026640619'::text AND (pc.concorrente_id::text IN ( SELECT ce.concorrente_id
+                   FROM afarma.concorrentes_estados ce
+                  WHERE ce.uf::text = 'RJ'::text))
+          GROUP BY p_1.ean) p
+     LEFT JOIN ( SELECT p_1.id,
+            p_1.produto_tsv
+           FROM afarma.produtocrawler p_1) t ON t.id::text = p.id
+WITH DATA;
+
+
+-- public.produtos_all_otimizado_rj source
+
+CREATE MATERIALIZED VIEW public.produtos_all_otimizado_rj
+TABLESPACE pg_default
+AS SELECT b.id,
+    b.nome,
+    b.ean,
+    b.photo_id,
+    b.descricao,
+    b.precomedio1,
+    b.lojapromocao,
+    b.categoria_id,
+    b.marca_id,
+    b.departamento_id,
+    b.principioativo_id,
+    b.grupo_id,
+    b.indicacao,
+    b.contraindicacao,
+    p.produto_tsv,
+    min(NULLIF(pc.valor, 0::double precision)) AS precomedio
+   FROM ( SELECT p_1.id,
+            p_1.nome,
+            p_1.ean,
+            p_1.photo_id,
+            p_1.descricao,
+            p_1.precomedio AS precomedio1,
+            p_1.lojapromocao,
+            ( SELECT d.id
+                   FROM afarma.dominio d,
+                    afarma.tipodominio t
+                  WHERE d.tipo_id::text = t.id::text AND d.nome::text = 'N√O IDENTIFICADO'::text AND t.nome::text = 'CATEGORIA'::text) AS categoria_id,
+            ( SELECT d.id
+                   FROM afarma.dominio d,
+                    afarma.tipodominio t
+                  WHERE d.tipo_id::text = t.id::text AND d.nome::text = 'N√O IDENTIFICADO'::text AND t.nome::text = 'MARCA'::text) AS marca_id,
+            ( SELECT d.id
+                   FROM afarma.dominio d,
+                    afarma.tipodominio t
+                  WHERE d.tipo_id::text = t.id::text AND d.nome::text = 'N√O IDENTIFICADO'::text AND t.nome::text = 'DEPARTAMENTO'::text) AS departamento_id,
+            ( SELECT d.id
+                   FROM afarma.dominio d,
+                    afarma.tipodominio t
+                  WHERE d.tipo_id::text = t.id::text AND d.nome::text = 'N√O IDENTIFICADO'::text AND t.nome::text = 'PRINCIPIO ATIVO'::text) AS principioativo_id,
+            ( SELECT d.id
+                   FROM afarma.dominio d,
+                    afarma.tipodominio t
+                  WHERE d.tipo_id::text = t.id::text AND d.nome::text = 'N√O IDENTIFICADO'::text AND t.nome::text = 'GRUPO'::text) AS grupo_id,
+            '-'::character varying AS indicacao,
+            '-'::character varying AS contraindicacao
+           FROM afarma.produto p_1
+          WHERE p_1.descricao::text <> 'GENERICO'::text
+          GROUP BY p_1.id, p_1.nome, p_1.ean, p_1.photo_id, p_1.descricao, p_1.contraindicacao, p_1.indicacao, p_1.precomedio, p_1.lojapromocao
+        UNION ALL
+         SELECT max(p_1.id::text) AS max,
+            ( SELECT d.nome
+                   FROM afarma.dominio d
+                  WHERE p_1.grupo_id::text = d.id::text) AS grupo,
+            max(p_1.ean::text) AS max,
+            max(p_1.photo_id::text) AS max,
+            max(p_1.descricao::text) AS max,
+                CASE
+                    WHEN avg(NULLIF(pc_1.valor, 0::double precision)) IS NULL THEN 0::double precision
+                    ELSE avg(NULLIF(pc_1.valor, 0::double precision))
+                END AS avg,
+            p_1.lojapromocao,
+            ( SELECT d.id
+                   FROM afarma.dominio d,
+                    afarma.tipodominio t
+                  WHERE d.tipo_id::text = t.id::text AND d.nome::text = 'N√O IDENTIFICADO'::text AND t.nome::text = 'CATEGORIA'::text) AS categoria_id,
+            ( SELECT d.id
+                   FROM afarma.dominio d,
+                    afarma.tipodominio t
+                  WHERE d.tipo_id::text = t.id::text AND d.nome::text = 'N√O IDENTIFICADO'::text AND t.nome::text = 'MARCA'::text) AS marca_id,
+            ( SELECT d.id
+                   FROM afarma.dominio d,
+                    afarma.tipodominio t
+                  WHERE d.tipo_id::text = t.id::text AND d.nome::text = 'N√O IDENTIFICADO'::text AND t.nome::text = 'DEPARTAMENTO'::text) AS departamento_id,
+            ( SELECT d.id
+                   FROM afarma.dominio d,
+                    afarma.tipodominio t
+                  WHERE d.tipo_id::text = t.id::text AND d.nome::text = 'N√O IDENTIFICADO'::text AND t.nome::text = 'PRINCIPIO ATIVO'::text) AS principioativo_id,
+            ( SELECT d.id
+                   FROM afarma.dominio d,
+                    afarma.tipodominio t
+                  WHERE d.tipo_id::text = t.id::text AND d.nome::text = 'N√O IDENTIFICADO'::text AND t.nome::text = 'GRUPO'::text) AS grupo_id,
+            '-'::character varying AS indicacao,
+            '-'::character varying AS contraindicacao
+           FROM afarma.produto p_1,
+            afarma.produtoconcorrente pc_1
+          WHERE pc_1.ean::text = p_1.ean::text AND p_1.descricao::text = 'GENERICO'::text
+          GROUP BY (( SELECT d.nome
+                   FROM afarma.dominio d
+                  WHERE p_1.grupo_id::text = d.id::text)), p_1.lojapromocao) b,
+    afarma.produto p,
+    afarma.produtoconcorrente pc,
+    afarma.concorrente c,
+    afarma.concorrentes_estados ce
+  WHERE p.ean::text = b.ean::text AND b.precomedio1 <> 0::double precision AND pc.ean::text = p.ean::text AND pc.valor > 0::double precision AND pc.concorrente_id::text = c.id::text AND c.id::text = ce.concorrente_id::text AND ce.uf::text = 'RJ'::text
+  GROUP BY b.id, b.nome, b.ean, b.photo_id, b.descricao, b.contraindicacao, b.indicacao, b.precomedio1, b.lojapromocao, b.categoria_id, b.marca_id, b.departamento_id, b.principioativo_id, b.grupo_id, p.produto_tsv
+  ORDER BY b.nome
+WITH DATA;
+
+
+
+CREATE OR REPLACE FUNCTION public.dblink(text, text, boolean)
+ RETURNS SETOF record
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_record$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink(text)
+ RETURNS SETOF record
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_record$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink(text, boolean)
+ RETURNS SETOF record
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_record$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink(text, text)
+ RETURNS SETOF record
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_record$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_build_sql_delete(text, int2vector, integer, text[])
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_build_sql_delete$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_build_sql_insert(text, int2vector, integer, text[], text[])
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_build_sql_insert$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_build_sql_update(text, int2vector, integer, text[], text[])
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_build_sql_update$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_cancel_query(text)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_cancel_query$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_close(text)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_close$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_close(text, boolean)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_close$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_close(text, text)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_close$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_close(text, text, boolean)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_close$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_connect(text, text)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_connect$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_connect(text)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_connect$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_connect_u(text, text)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT SECURITY DEFINER
+AS '$libdir/dblink', $function$dblink_connect$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_connect_u(text)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT SECURITY DEFINER
+AS '$libdir/dblink', $function$dblink_connect$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_current_query()
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED
+AS '$libdir/dblink', $function$dblink_current_query$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_disconnect(text)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_disconnect$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_disconnect()
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_disconnect$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_error_message(text)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_error_message$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_exec(text, text, boolean)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_exec$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_exec(text)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_exec$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_exec(text, text)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_exec$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_exec(text, boolean)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_exec$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_fdw_validator(options text[], catalog oid)
+ RETURNS void
+ LANGUAGE c
+ PARALLEL SAFE STRICT
+AS '$libdir/dblink', $function$dblink_fdw_validator$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_fetch(text, text, integer, boolean)
+ RETURNS SETOF record
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_fetch$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_fetch(text, integer)
+ RETURNS SETOF record
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_fetch$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_fetch(text, integer, boolean)
+ RETURNS SETOF record
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_fetch$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_fetch(text, text, integer)
+ RETURNS SETOF record
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_fetch$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_get_connections()
+ RETURNS text[]
+ LANGUAGE c
+ PARALLEL RESTRICTED
+AS '$libdir/dblink', $function$dblink_get_connections$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_get_notify(OUT notify_name text, OUT be_pid integer, OUT extra text)
+ RETURNS SETOF record
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_get_notify$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_get_notify(conname text, OUT notify_name text, OUT be_pid integer, OUT extra text)
+ RETURNS SETOF record
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_get_notify$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_get_pkey(text)
+ RETURNS SETOF dblink_pkey_results
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_get_pkey$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_get_result(text)
+ RETURNS SETOF record
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_get_result$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_get_result(text, boolean)
+ RETURNS SETOF record
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_get_result$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_is_busy(text)
+ RETURNS integer
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_is_busy$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_open(text, text)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_open$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_open(text, text, boolean)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_open$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_open(text, text, text)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_open$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_open(text, text, text, boolean)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_open$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_send_query(text, text)
+ RETURNS integer
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_send_query$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gin_extract_query_trgm(text, internal, smallint, internal, internal, internal, internal)
+ RETURNS internal
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gin_extract_query_trgm$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gin_extract_value_trgm(text, internal)
+ RETURNS internal
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gin_extract_value_trgm$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gin_trgm_consistent(internal, smallint, text, integer, internal, internal, internal, internal)
+ RETURNS boolean
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gin_trgm_consistent$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gin_trgm_triconsistent(internal, smallint, text, integer, internal, internal, internal)
+ RETURNS "char"
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gin_trgm_triconsistent$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gtrgm_compress(internal)
+ RETURNS internal
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_compress$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gtrgm_consistent(internal, text, smallint, oid, internal)
+ RETURNS boolean
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_consistent$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gtrgm_decompress(internal)
+ RETURNS internal
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_decompress$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gtrgm_distance(internal, text, smallint, oid, internal)
+ RETURNS double precision
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_distance$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gtrgm_in(cstring)
+ RETURNS gtrgm
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_in$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gtrgm_options(internal)
+ RETURNS void
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE
+AS '$libdir/pg_trgm', $function$gtrgm_options$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gtrgm_out(gtrgm)
+ RETURNS cstring
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_out$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gtrgm_penalty(internal, internal, internal)
+ RETURNS internal
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_penalty$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gtrgm_picksplit(internal, internal)
+ RETURNS internal
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_picksplit$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gtrgm_same(gtrgm, gtrgm, internal)
+ RETURNS internal
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_same$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gtrgm_union(internal, internal)
+ RETURNS gtrgm
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_union$function$
+;
+
+CREATE OR REPLACE FUNCTION public.set_limit(real)
+ RETURNS real
+ LANGUAGE c
+ STRICT
+AS '$libdir/pg_trgm', $function$set_limit$function$
+;
+
+CREATE OR REPLACE FUNCTION public.show_limit()
+ RETURNS real
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$show_limit$function$
+;
+
+CREATE OR REPLACE FUNCTION public.show_trgm(text)
+ RETURNS text[]
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$show_trgm$function$
+;
+
+CREATE OR REPLACE FUNCTION public.similarity(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$similarity$function$
+;
+
+CREATE OR REPLACE FUNCTION public.similarity_dist(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$similarity_dist$function$
+;
+
+CREATE OR REPLACE FUNCTION public.similarity_op(text, text)
+ RETURNS boolean
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$similarity_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.strict_word_similarity(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$strict_word_similarity$function$
+;
+
+CREATE OR REPLACE FUNCTION public.strict_word_similarity_commutator_op(text, text)
+ RETURNS boolean
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$strict_word_similarity_commutator_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.strict_word_similarity_dist_commutator_op(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$strict_word_similarity_dist_commutator_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.strict_word_similarity_dist_op(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$strict_word_similarity_dist_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.strict_word_similarity_op(text, text)
+ RETURNS boolean
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$strict_word_similarity_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.unaccent(regdictionary, text)
+ RETURNS text
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/unaccent', $function$unaccent_dict$function$
+;
+
+CREATE OR REPLACE FUNCTION public.unaccent(text)
+ RETURNS text
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/unaccent', $function$unaccent_dict$function$
+;
+
+CREATE OR REPLACE FUNCTION public.unaccent_init(internal)
+ RETURNS internal
+ LANGUAGE c
+ PARALLEL SAFE
+AS '$libdir/unaccent', $function$unaccent_init$function$
+;
+
+CREATE OR REPLACE FUNCTION public.unaccent_lexize(internal, internal, internal, internal)
+ RETURNS internal
+ LANGUAGE c
+ PARALLEL SAFE
+AS '$libdir/unaccent', $function$unaccent_lexize$function$
+;
+
+CREATE OR REPLACE FUNCTION public.usuario_codigo_ind()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+
+BEGIN
+
+
+
+     
+UPDATE
+    afarma.usuario 
+SET
+    codigoind=ci.concat
+FROM
+   (select cod.identificador, concat(translate((lower(left(u.nome,((strpos(u.nome, ' '))-1)))), '·‡‚„‰Âaaa¡¬√ƒ≈AAA¿ÈËÍÎeeeeeEEE…EE»ÏÌÓÔÏiiiÃÕŒœÃIIIÛÙıˆoooÚ“”‘’÷OOO˘˙˚¸uuuuŸ⁄€‹UUUUÁ«Ò—˝›',
+'aaaaaaaaaAAAAAAAAAeeeeeeeeeEEEEEEEiiiiiiiiIIIIIIIIooooooooOOOOOOOOuuuuuuuuUUUUUUUUcCnNyY'),cod.codigo)
+from
+(select max(i.id) as "identificador", (max(cast(i.substring as integer))+1) as "codigo" from 
+ (select u.id, u.nome,
+ translate((lower(left(u.nome,((strpos(u.nome, ' '))-1)))), '·‡‚„‰Âaaa¡¬√ƒ≈AAA¿ÈËÍÎeeeeeEEE…EE»ÏÌÓÔÏiiiÃÕŒœÃIIIÛÙıˆoooÚ“”‘’÷OOO˘˙˚¸uuuuŸ⁄€‹UUUUÁ«Ò—˝›',
+'aaaaaaaaaAAAAAAAAAeeeeeeeeeEEEEEEEiiiiiiiiIIIIIIIIooooooooOOOOOOOOuuuuuuuuUUUUUUUUcCnNyY'),
+ u.codigoind, substring(u.codigoind FROM '[0-9]+') from usuario u
+ where u.perfilid='2'
+ order by id asc) i) cod, usuario u where u.id=cod.identificador and (u.codigoind isnull or u.codigoind='' or u.codigoind=null)) ci 
+WHERE
+    id = ci.identificador;
+
+
+
+RETURN NEW;
+
+END;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_generate_v1()
+ RETURNS uuid
+ LANGUAGE c
+ PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_generate_v1$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_generate_v1mc()
+ RETURNS uuid
+ LANGUAGE c
+ PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_generate_v1mc$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_generate_v3(namespace uuid, name text)
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_generate_v3$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_generate_v4()
+ RETURNS uuid
+ LANGUAGE c
+ PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_generate_v4$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_generate_v5(namespace uuid, name text)
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_generate_v5$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_nil()
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_nil$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_ns_dns()
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_ns_dns$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_ns_oid()
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_ns_oid$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_ns_url()
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_ns_url$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_ns_x500()
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_ns_x500$function$
+;
+
+CREATE OR REPLACE FUNCTION public.word_similarity(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity$function$
+;
+
+CREATE OR REPLACE FUNCTION public.word_similarity_commutator_op(text, text)
+ RETURNS boolean
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity_commutator_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.word_similarity_dist_commutator_op(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity_dist_commutator_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.word_similarity_dist_op(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity_dist_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.word_similarity_op(text, text)
+ RETURNS boolean
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity_op$function$
+;
+
+
+
+
+
 
