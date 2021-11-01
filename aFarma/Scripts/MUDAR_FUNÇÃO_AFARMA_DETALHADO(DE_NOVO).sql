@@ -1,19 +1,31 @@
 	
+-- DROP TYPE afarma.ctitemdetalhado;
+
+CREATE TYPE afarma.ctitemdetalhadoNOVO AS (
+	id varchar,
+	nome varchar,
+	concorrente varchar,
+	cotacao_id varchar,
+	ean varchar,
+	quantidade int4,
+	url varchar,
+	valor numeric(10,5),
+	total numeric(10,5));
 
 
 
-CREATE OR REPLACE FUNCTION afarma.cotacaoiaidetalhadodesconto(cotid character varying, descontoitem double precision)
- RETURNS SETOF afarma.ctitemdetalhado
+CREATE OR REPLACE FUNCTION afarma.cotacaodetalhado/*desconto*/(cotid character VARYING/*, descontoitem double precision*/)
+ RETURNS SETOF afarma.ctitemdetalhadoNOVO
  LANGUAGE plpgsql
 AS $function$
    DECLARE
-      itens afarma.ctitemdetalhado%ROWTYPE;
+      itens afarma.ctitemdetalhadoNOVO%ROWTYPE;
 BEGIN
 
  	FOR itens in
 
 
-	SELECT uuid_generate_v4()
+	SELECT cast(uuid_generate_v4() as varchar) as id
 	,i.*
 FROM (
 	SELECT (
@@ -235,7 +247,7 @@ FROM (
 		
 		(
 			SELECT i.*
-				,((i.precomedio-(descontoitem)) * i.quantidade)
+				,((i.precomedio/*-(descontoitem)*/) * i.quantidade)
 			FROM (
 				SELECT 'aFarma' AS loja
 					,i.cotacao
