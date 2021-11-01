@@ -30,7 +30,7 @@ CREATE TABLE afarma.usuario (
 
 
 INSERT INTO afarma.usuario
-(id, aceitetermo, ativo, codigo_cad_senha, codigoind, cpf, dataaceite, datanascimento, devicetoken, email, nome, senha, telefone, casarepousoid, enderecoid, perfilid)
+(id, aceitetermo, ativo, codigo_cad_senha, codigoind, cpf, dataaceite, datanascimento, devicetoken, email, nome, senha, telefone, enderecoid, perfilid)
 VALUES
 (
 	uuid_generate_v4(),
@@ -46,8 +46,7 @@ VALUES
 	'Derick Bezerra',
 	'1234',
 	'',
-	'',
-	(select e.id from endereco e where e.lat = -23.0215992836864),
-	3
+	(select e.id from afarma.endereco e where e.lat = -23.0215992836864),
+	1
 );
 
