@@ -11,3 +11,7 @@ CREATE TABLE afarma.perfil (
 	nome varchar(255) NULL,
 	CONSTRAINT perfil_pkey PRIMARY KEY (id)
 );
+
+
+INSERT INTO afarma.perfil(id, identificador, nome)
+VALUES (1, 'Administrador', '')
