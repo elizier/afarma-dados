@@ -332,7 +332,8 @@ group by r.owner, r.data_post) r
 left join lateral findresourcebyowner(r.owner) ro on true
 where ro.type = 'PROFILE_IMAGE' or ro.type isnull
 group by r.owner, r.data_post, r.data) r 
-cross join lateral findresourcedata(r.owner) as ro) r
+cross join lateral findresourcedata(r.owner) as ro
+grouo by data) r
 
 union all
 
@@ -358,7 +359,8 @@ cast( (select count(*) from myneresourceinformation m where m."type" ='POST') as
 ) m
 cross join lateral findresourcedata(m.resource_id) as rd
 LEFT   JOIN LATERAL findresourcebyowner(m.resource_id) ro ON true
-where ro.type isnull or ro.type = 'PROFILE_IMAGE') r
+where ro.type isnull or ro.type = 'PROFILE_IMAGE'
+group by data) r
 ) r
 order by random()
 
@@ -375,5 +377,41 @@ END;
 
 $function$
 ;
+
+
+
+
+
+
+
+
+
+SELECT cast(uuid_generate_v4() AS VARCHAR) AS id
+	,'PRODUCT' AS "type"
+	,p.data
+FROM (
+	SELECT jsonb_build_object('user', jsonb_build_object('user', p.user) || jsonb_build_object('profile_image', i.data)) || p.product_data AS data
+	FROM (
+		SELECT p.user
+			,p.product_data || jsonb_build_object('nested', array_agg(p.nested)) AS product_data
+		FROM (
+			SELECT jsonb(u.data) AS user
+				,jsonb_build_object('type', f.type) || jsonb(f.data) AS product_data
+				,jsonb_build_object('type', s.type) || jsonb(s.data) AS nested
+			FROM findresourcebyowner(:user_id) f
+			LEFT JOIN lateral findresourcebyowner(cast(f.data ->> 'id' AS VARCHAR)) AS s ON true
+			LEFT JOIN lateral findresourcedata(:user_id) AS u ON true
+			WHERE f.type = 'PRODUCT'
+				AND cast(f.data ->> 'productType' AS VARCHAR) = coalesce(:type_, cast(f.data ->> 'productType' AS VARCHAR))
+			) p
+		GROUP BY p.user
+			,p.product_data
+		) p
+	LEFT JOIN lateral findresourcebyowner(:user_id) AS i ON true
+	WHERE i.type = 'PROFILE_IMAGE'
+	) p
+	
+	
+	
 
 
