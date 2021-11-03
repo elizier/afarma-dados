@@ -68,11 +68,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.finddata(varchar) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.finddata(varchar) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.findfeedbyuser(user_id character varying, itens_by_page integer, page integer)
  RETURNS SETOF feedresult
  LANGUAGE plpgsql
@@ -130,11 +125,6 @@ END;
 
 $function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.findfeedbyuser(varchar,int4,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findfeedbyuser(varchar,int4,int4) TO postgres;
 
 CREATE OR REPLACE FUNCTION public.findfeedbyuserdata(user_id character varying, itens_by_page integer, page integer)
  RETURNS SETOF jsonresult
@@ -200,11 +190,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.findfeedbyuserdata(varchar,int4,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findfeedbyuserdata(varchar,int4,int4) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.findmynefeed(user_id character varying, itens_by_page integer, page integer)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
@@ -226,7 +211,7 @@ select  u.createdate_post, jsonb(u.user_data) as user_data, jsonb(u.post_data) a
 (SELECT row_to_json(u.*) as user_data, jsonb_build_object('type', p.type) || jsonb(p.data) as post_data, cast(p.data ->> 'createDate' AS TIMESTAMP) as createdate_post, cast(p.data ->> 'id' AS varchar) as id_post
 FROM (
 	select u.id, row_to_json(u.*) AS user
-		,(jsonb_build_object('id', o.s3_id) || jsonb_build_object('createDate', o."createDate") || jsonb_build_object('description', o.description) || jsonb_build_object('filename', o."fileName") || jsonb_build_object('filetype', o."fileType") || jsonb_build_object('s3url', o.s3url)) AS profile_image
+		,(jsonb_build_object('id', o.s3_id) || jsonb_build_object('createDate', o."createDate") || jsonb_build_object('description', o.description) || jsonb_build_object('fileName', o."fileName") || jsonb_build_object('fileType', o."fileType") || jsonb_build_object('s3url', o.s3url)) AS profile_image
 	FROM (
 		SELECT u.id
 			,u.accountname as "accountName"
@@ -313,11 +298,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.findmynefeed(varchar,int4,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findmynefeed(varchar,int4,int4) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.findmynegalaxy(user_id character varying)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
@@ -367,11 +347,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.findmynegalaxy(varchar) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findmynegalaxy(varchar) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.findmyneglobalfeed(itens_by_page integer, page integer)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
@@ -393,7 +368,7 @@ select  jsonb(u.user_data) as user_data, jsonb(u.post_data) as post_data, jsonb_
 (SELECT json_build_object('user',u.user ,'profile_image',u.profile_image)  as user_data, jsonb_build_object('type', p.type) || jsonb(p.data) as post_data, cast(p.data ->> 'createdate' AS TIMESTAMP) as createdate_post, cast(p.data ->> 'id' AS varchar) as id_post
 FROM (
 	select o.post_id, u.id, row_to_json(u.*) AS user
-		,(jsonb_build_object('id', o.s3_id) || jsonb_build_object('createDate', o."createDate") || jsonb_build_object('description', o.description) || jsonb_build_object('filename', o."fileName") || jsonb_build_object('filetype', o."fileType") || jsonb_build_object('s3url', o.s3url)) AS profile_image
+		,(jsonb_build_object('id', o.s3_id) || jsonb_build_object('createDate', o."createDate") || jsonb_build_object('description', o.description) || jsonb_build_object('fileName', o."fileName") || jsonb_build_object('fileType', o."fileType") || jsonb_build_object('s3url', o.s3url)) AS profile_image
 	FROM (
 		SELECT u.id
 			,u.accountname as "accountName"
@@ -461,11 +436,6 @@ END;
 
 $function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.findmyneglobalfeed(int4,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findmyneglobalfeed(int4,int4) TO postgres;
 
 CREATE OR REPLACE FUNCTION public.findmyneinsights(user_id character varying, itens_by_page integer, page integer)
  RETURNS SETOF mynejsontype
@@ -584,11 +554,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.findmyneinsights(varchar,int4,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findmyneinsights(varchar,int4,int4) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.findmynerelatedposts(post_id character varying, qtde integer)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
@@ -624,11 +589,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.findmynerelatedposts(varchar,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findmynerelatedposts(varchar,int4) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.findmynerelations(user_from character varying, user_to character varying, itens_by_page integer, page integer)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
@@ -663,11 +623,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.findmynerelations(varchar,varchar,int4,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findmynerelations(varchar,varchar,int4,int4) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.findmyneresource(resource character varying)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
@@ -683,8 +638,10 @@ where replace(m.mri , 'mri::', '') = replace(resource, 'mri::', '')) as type,
  	to_json(f.data) as data from
 (select jsonb_build_object('owner_id', o.owner) || jsonb_build_object('type', o.type) || to_jsonb(o.data) || f.nested as data from
 (select f.owner, jsonb_build_object('nested', array_agg(f.data)) as nested from
+(select o.owner, f.data  from (select resource as owner) o left join 
 (select f.owner, jsonb_build_object('type', f.type) || to_jsonb(f.data)	as data 
-from findresourcebyowner(resource) f) f
+from findresourcebyowner(resource) f) f on o.owner = f.owner
+) f
 group by f.owner) f 
 cross join lateral findresourcedata(f.owner) as o ) f
 
@@ -703,10 +660,117 @@ END;
 $function$
 ;
 
--- Permissions
+CREATE OR REPLACE FUNCTION public.findmyproducts(user_id character varying, type_ character varying)
+ RETURNS SETOF mynejsontype
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.mynejsontype%ROWTYPE;
+BEGIN
 
-ALTER FUNCTION public.findmyneresource(varchar) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findmyneresource(varchar) TO postgres;
+ 	FOR resource_t in
+
+SELECT cast(uuid_generate_v4() AS VARCHAR) AS id
+	,'PRODUCT' AS "type"
+	,p.data
+FROM (
+	SELECT jsonb_build_object('user', jsonb_build_object('user', p.user) || jsonb_build_object('profile_image', i.data)) || p.product_data AS data
+	FROM (
+		SELECT p.user
+			,p.product_data || jsonb_build_object('nested', array_agg(p.nested)) AS product_data
+		FROM (
+			SELECT jsonb(u.data) AS user
+				,jsonb_build_object('type', f.type) || jsonb(f.data) AS product_data
+				,jsonb_build_object('type', s.type) || jsonb(s.data) AS nested
+			FROM findresourcebyowner(user_id) f
+			LEFT JOIN lateral findresourcebyowner(cast(f.data ->> 'id' AS VARCHAR)) AS s ON true
+			LEFT JOIN lateral findresourcedata(user_id) AS u ON true
+			WHERE f.type = 'PRODUCT'
+				AND cast(f.data ->> 'productType' AS VARCHAR) = coalesce(type_, cast(f.data ->> 'productType' AS VARCHAR))
+			) p
+		GROUP BY p.user
+			,p.product_data
+		) p
+	LEFT JOIN lateral findresourcebyowner(user_id) AS i ON true
+	WHERE i.type = 'PROFILE_IMAGE'
+	) p
+
+
+loop
+		RETURN NEXT resource_t;
+	
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.findownerdata(resource character varying)
+ RETURNS SETOF jsonresultowner
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.jsonresultowner%ROWTYPE;
+    mri_id character varying;
+BEGIN
+mri_id := replace(resource,'mri::','');
+   
+
+
+ 	FOR resource_t in
+
+	
+select o.* from findresourcedata(mri_id) f
+cross join lateral findresourcedata(f.owner) as o
+ 
+loop
+		RETURN NEXT resource_t;
+	
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.findownerresource(resource character varying)
+ RETURNS SETOF jsonresultowner
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.jsonresultowner%ROWTYPE;
+BEGIN
+
+ 	FOR resource_t in
+
+select f.owner as slave, f.type, f.id, f.data from 
+(
+select replace(m.mri,'mri::','') as mri, replace(mr.mri,'mri::','') as owner, m.type from public.myneresourceinformation m 
+left join ownerresources o on o.slave = m.id
+left join myneresourceinformation mr on o.owner=mr.id
+group by  m.mri, mr.mri, m.type) m
+cross join lateral public.findresourcebyowner(m.owner) as f
+where m.owner notnull and m.mri = replace(resource,'mri::','') --and f.owner = m.owner
+ 
+loop
+		RETURN NEXT resource_t;
+	
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
 
 CREATE OR REPLACE FUNCTION public.findrelatedposts(mri character varying, qtdepost integer)
  RETURNS SETOF feedresult
@@ -743,11 +807,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.findrelatedposts(varchar,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findrelatedposts(varchar,int4) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.findresourcebyowner(resource character varying)
  RETURNS SETOF jsonresultowner
  LANGUAGE plpgsql
@@ -780,11 +839,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.findresourcebyowner(varchar) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findresourcebyowner(varchar) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.findresourcebyownerandtype(resource character varying, type_ character varying)
  RETURNS SETOF jsonresultowner
  LANGUAGE plpgsql
@@ -816,11 +870,6 @@ END;
 
 $function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.findresourcebyownerandtype(varchar,varchar) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findresourcebyownerandtype(varchar,varchar) TO postgres;
 
 CREATE OR REPLACE FUNCTION public.findresourcedata(resource character varying)
  RETURNS SETOF jsonresultowner
@@ -857,11 +906,15 @@ mri_id := replace(resource,'mri::','');
    then (select row_to_json(a) from (select * from public.accountability a where a.id= mri_id) a)
    when (mri_type) = 'INSIGHT'
    then (select row_to_json(i) from (select * from public.insight i where i.id= mri_id) i)
+   when (mri_type) = 'PRICE'
+   then (select row_to_json(p) from (select * from public.price p where p.id= mri_id) p)
     when (mri_type) = 'COMMENT' 
    then (select row_to_json(c) from (select c.id, c.createdate as "createDate", c.text from public.comment c  where c.id = mri_id) c)
+   when (mri_type) = 'PRODUCT' 
+   then (select row_to_json(p) from (select p.id, p.active, p.createdate as "createDate", p.description, p.name, p.producttype as "productType", cast(p.details as json) from public.product p  where p.id = mri_id) p)
    when (mri_type) = 'ADDRESS'
    then (select row_to_json(a) from (select * from public.address a where a.id= mri_id) a)
-   else (select row_to_json(s) from (select s.id, s.createdate as "createDate", s.description, s.filename as "filename", s.filetype as "filetype", s.s3url, s.solicitacaoid from public.s3file s where s.id= mri_id) s)
+   else (select row_to_json(s) from (select s.id, s.createdate as "createDate", s.description, s.filename as "fileName", s.filetype as "fileType", s.s3url, s.solicitacaoid from public.s3file s where s.id= mri_id) s)
    end) as resourcedata) r,
   (select replace(m.mri,'mri::','') as mri, replace(mr.mri,'mri::','') as owner, m.type from public.myneresourceinformation m 
 left join ownerresources o on o.slave = m.id
@@ -883,10 +936,125 @@ END;
 $function$
 ;
 
--- Permissions
+CREATE OR REPLACE FUNCTION public.gin_extract_query_trgm(text, internal, smallint, internal, internal, internal, internal)
+ RETURNS internal
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gin_extract_query_trgm$function$
+;
 
-ALTER FUNCTION public.findresourcedata(varchar) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.findresourcedata(varchar) TO postgres;
+CREATE OR REPLACE FUNCTION public.gin_extract_value_trgm(text, internal)
+ RETURNS internal
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gin_extract_value_trgm$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gin_trgm_consistent(internal, smallint, text, integer, internal, internal, internal, internal)
+ RETURNS boolean
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gin_trgm_consistent$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gin_trgm_triconsistent(internal, smallint, text, integer, internal, internal, internal)
+ RETURNS "char"
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gin_trgm_triconsistent$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gtrgm_compress(internal)
+ RETURNS internal
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_compress$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gtrgm_consistent(internal, text, smallint, oid, internal)
+ RETURNS boolean
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_consistent$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gtrgm_decompress(internal)
+ RETURNS internal
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_decompress$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gtrgm_distance(internal, text, smallint, oid, internal)
+ RETURNS double precision
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_distance$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gtrgm_in(cstring)
+ RETURNS gtrgm
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_in$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gtrgm_out(gtrgm)
+ RETURNS cstring
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_out$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gtrgm_penalty(internal, internal, internal)
+ RETURNS internal
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_penalty$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gtrgm_picksplit(internal, internal)
+ RETURNS internal
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_picksplit$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gtrgm_same(gtrgm, gtrgm, internal)
+ RETURNS internal
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_same$function$
+;
+
+CREATE OR REPLACE FUNCTION public.gtrgm_union(internal, internal)
+ RETURNS gtrgm
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$gtrgm_union$function$
+;
+
+CREATE OR REPLACE FUNCTION public.insertadmindata()
+ RETURNS character varying
+ LANGUAGE plpgsql
+AS $function$
+declare
+   retorno varchar;
+ -- id_trans varchar;
+begin
+
+insert into myneuser(id,accountname,active,createdate,email,name,password,usertype,visibility,method)
+values (uuid_generate_v4(), 'MYNE_SYSTEM_USER', true, now(),
+'sender@myne.net.br', 'System User','duBl4ck@pw', 'USER', 'PRIVATE', 'Myne');
+
+select 'DONE' into retorno;
+
+return retorno;
+
+
+end;
+$function$
+;
 
 CREATE OR REPLACE FUNCTION public.listmynerelations(user_id_ character varying, relation_type character varying, itens_by_page integer, page integer)
  RETURNS SETOF mynejsontype
@@ -1394,11 +1562,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.listmynerelations(varchar,varchar,int4,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.listmynerelations(varchar,varchar,int4,int4) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.listresourcesbytype(resource_type character varying, itens_by_page integer, page integer)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
@@ -1461,11 +1624,6 @@ END;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.listresourcesbytype(varchar,int4,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.listresourcesbytype(varchar,int4,int4) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.myneglobalfeed(itens_by_page integer, page integer)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
@@ -1490,11 +1648,6 @@ END;
 
 $function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.myneglobalfeed(int4,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.myneglobalfeed(int4,int4) TO postgres;
 
 CREATE OR REPLACE FUNCTION public.myneresearch(research character varying, user_id character varying)
  RETURNS SETOF mynejsontype
@@ -1521,11 +1674,6 @@ END;
 
 $function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.myneresearch(varchar,varchar) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.myneresearch(varchar,varchar) TO postgres;
 
 CREATE OR REPLACE FUNCTION public.myneresearch(research character varying, research_type character varying, itens_by_page integer, page integer)
  RETURNS SETOF mynejsontype
@@ -1554,6 +1702,40 @@ where
 t.tag_tsv @@
 to_tsquery('portuguese',(select replace(unaccent(trim(research)),' ',' | ')))
 and m.type = 'POST'
+group by t.id , m.mri
+order by similarity desc
+limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+) m
+cross join lateral findresourcedata(m.resource_id) as rd
+cross join lateral findresourcebyowner(m.resource_id) as ro) r 
+group by r.owner, r.data_post) r
+left join lateral findresourcebyowner(r.owner) ro on true
+where ro.type = 'PROFILE_IMAGE' or ro.type isnull
+group by r.owner, r.data_post, r.data) r 
+cross join lateral findresourcedata(r.owner) as ro) r;
+
+
+
+
+elsif research_type = 'PRODUCT' then
+	RETURN query
+	
+select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json( r.data) as data from 
+(select jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
+from
+(select r.owner,  array_agg(ro.data), r.data_post, r.data as data_slave from
+(select r.owner, r.data_post, jsonb_build_object('nested', array_agg(r.data_slave)) as data from
+(select rd.owner, jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
+jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave from
+(select replace(m.mri,'mri::','') as resource_id, 
+t.id, tsvector_agg(t.tag_tsv), similarity(lower(unaccent(STRING_AGG(t.tag, ' '))), lower(unaccent(research)))
+from tag t, myneresourceinformation m, resourcetag r 
+where 
+ m.id = r.resource and r.tag = t.id and --m.type = :type and
+t.tag_tsv @@
+to_tsquery('portuguese',(select replace(unaccent(trim(research)),' ',' | ')))
+and m.type = 'PRODUCT'
 group by t.id , m.mri
 order by similarity desc
 limit coalesce(itens_by_page, 5)
@@ -1644,7 +1826,37 @@ offset coalesce(page, 0) * coalesce(itens_by_page, 5)
 ) m
 cross join lateral findresourcedata(m.resource_id) as rd
 LEFT   JOIN LATERAL findresourcebyowner(m.resource_id) ro ON true
-where ro.type isnull or ro.type = 'PROFILE_IMAGE') r;
+where ro.type isnull or ro.type = 'PROFILE_IMAGE') r
+
+union all
+
+select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json( r.data) as data from 
+(select jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
+from
+(select r.owner,  array_agg(ro.data), r.data_post, r.data as data_slave from
+(select r.owner, r.data_post, jsonb_build_object('nested', array_agg(r.data_slave)) as data from
+(select rd.owner, jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
+jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave from
+(select replace(m.mri,'mri::','') as resource_id, 
+t.id, tsvector_agg(t.tag_tsv), similarity(lower(unaccent(STRING_AGG(t.tag, ' '))), lower(unaccent(research)))
+from tag t, myneresourceinformation m, resourcetag r 
+where 
+ m.id = r.resource and r.tag = t.id and --m.type = :type and
+t.tag_tsv @@
+to_tsquery('portuguese',(select replace(unaccent(trim(research)),' ',' | ')))
+and m.type = 'PRODUCT'
+group by t.id , m.mri
+order by similarity desc
+limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+) m
+cross join lateral findresourcedata(m.resource_id) as rd
+cross join lateral findresourcebyowner(m.resource_id) as ro) r 
+group by r.owner, r.data_post) r
+left join lateral findresourcebyowner(r.owner) ro on true
+where ro.type = 'PROFILE_IMAGE' or ro.type isnull
+group by r.owner, r.data_post, r.data) r 
+cross join lateral findresourcedata(r.owner) as ro) r;
 
 end IF ;
   
@@ -1659,10 +1871,85 @@ END;
 $function$
 ;
 
--- Permissions
+CREATE OR REPLACE FUNCTION public.myneresearchfeed(itens_by_page integer, page integer)
+ RETURNS SETOF mynejsontype
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.mynejsontype%ROWTYPE;
+BEGIN
 
-ALTER FUNCTION public.myneresearch(varchar,varchar,int4,int4) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.myneresearch(varchar,varchar,int4,int4) TO postgres;
+ 	FOR resource_t in
+ 	
+select * from 
+(
+select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json( r.data) as data from 
+(select jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
+from
+(select r.owner,  array_agg(ro.data), r.data_post, r.data as data_slave from
+(select r.owner, r.data_post, jsonb_build_object('nested', array_agg(r.data_slave)) as data from
+(select rd.owner, jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
+jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave from
+(select replace(m.mri,'mri::','') as resource_id 
+from myneresourceinformation m
+where 
+ m.type = 'POST'
+ order by random()
+limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+) m
+cross join lateral findresourcedata(m.resource_id) as rd
+cross join lateral findresourcebyowner(m.resource_id) as ro) r 
+group by r.owner, r.data_post) r
+left join lateral findresourcebyowner(r.owner) ro on true
+where ro.type = 'PROFILE_IMAGE' or ro.type isnull
+group by r.owner, r.data_post, r.data) r 
+cross join lateral findresourcedata(r.owner) as ro) r
+group by r.data
+
+union all
+
+select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json(r.data) as data from
+(select jsonb_build_object('type', rd.type) || jsonb(rd.data)|| jsonb_build_object('profile_image', ro.data) as data from
+(select replace(m.mri,'mri::','') as resource_id 
+from myneresourceinformation m
+where 
+ m.type = 'USER'
+ order by random()
+limit coalesce(
+ceil( 
+itens_by_page *
+(cast( (select count(*) from myneresourceinformation m where m."type" ='USER') as float)/
+cast( (select count(*) from myneresourceinformation m where m."type" ='POST') as float)))
+, 5)
+offset coalesce(page, 0) * coalesce(
+ceil( 
+itens_by_page *
+(cast( (select count(*) from myneresourceinformation m where m."type" ='USER') as float)/
+cast( (select count(*) from myneresourceinformation m where m."type" ='POST') as float)))
+, 5)
+) m
+cross join lateral findresourcedata(m.resource_id) as rd
+LEFT   JOIN LATERAL findresourcebyowner(m.resource_id) ro ON true
+where ro.type isnull or ro.type = 'PROFILE_IMAGE'
+) r
+group by r.data
+) r
+order by random()
+
+
+loop
+		RETURN NEXT resource_t;
+	
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
 
 CREATE OR REPLACE FUNCTION public.removerelations(fromuser character varying, touser character varying, type_ character varying)
  RETURNS character varying
@@ -1730,11 +2017,6 @@ RETURN retorno;
 end;
 $function$
 ;
-
--- Permissions
-
-ALTER FUNCTION public.removerelations(varchar,varchar,varchar) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.removerelations(varchar,varchar,varchar) TO postgres;
 
 CREATE OR REPLACE FUNCTION public.requestrelation(user_request character varying, user_to_follow character varying, relation_type character varying)
  RETURNS character varying
@@ -1932,11 +2214,6 @@ end;
 $function$
 ;
 
--- Permissions
-
-ALTER FUNCTION public.requestrelation(varchar,varchar,varchar) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.requestrelation(varchar,varchar,varchar) TO postgres;
-
 CREATE OR REPLACE FUNCTION public.responserelationrequest(requestid character varying, status_ character varying)
  RETURNS character varying
  LANGUAGE plpgsql
@@ -2066,7 +2343,456 @@ end;
 $function$
 ;
 
--- Permissions
+CREATE OR REPLACE FUNCTION public.set_limit(real)
+ RETURNS real
+ LANGUAGE c
+ STRICT
+AS '$libdir/pg_trgm', $function$set_limit$function$
+;
 
-ALTER FUNCTION public.responserelationrequest(varchar,varchar) OWNER TO postgres;
-GRANT ALL ON FUNCTION public.responserelationrequest(varchar,varchar) TO postgres;
+CREATE OR REPLACE FUNCTION public.show_limit()
+ RETURNS real
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$show_limit$function$
+;
+
+CREATE OR REPLACE FUNCTION public.show_trgm(text)
+ RETURNS text[]
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$show_trgm$function$
+;
+
+CREATE OR REPLACE FUNCTION public.similarity(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$similarity$function$
+;
+
+CREATE OR REPLACE FUNCTION public.similarity_dist(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$similarity_dist$function$
+;
+
+CREATE OR REPLACE FUNCTION public.similarity_op(text, text)
+ RETURNS boolean
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$similarity_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.slugcolumn(tbl_name character varying, clmn_name character varying)
+ RETURNS TABLE(slug json)
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+RETURN QUERY 
+
+EXECUTE format('select row_to_json(s) as slug from (select id, slugify(%s) as slug from %I) s',clmn_name,tbl_name);
+
+ END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.slugify(value text)
+ RETURNS text
+ LANGUAGE sql
+ IMMUTABLE STRICT
+AS $function$
+  -- removes accents (diacritic signs) from a given string --
+  WITH "unaccented" AS (
+    SELECT unaccent("value") AS "value"
+  ),
+  -- lowercases the string
+  "lowercase" AS (
+    SELECT lower("value") AS "value"
+    FROM "unaccented"
+  ),
+  -- remove single and double quotes
+  "removed_quotes" AS (
+    SELECT regexp_replace("value", '[''"]+', '', 'gi') AS "value"
+    FROM "lowercase"
+  ),
+  -- replaces anything that's not a letter, number, hyphen('-'), or underscore('_') with a hyphen('-')
+  "hyphenated" AS (
+    SELECT regexp_replace("value", '[^a-z0-9\\-_]+', '-', 'gi') AS "value"
+    FROM "removed_quotes"
+  ),
+  -- trims hyphens('-') if they exist on the head or tail of the string
+  "trimmed" AS (
+    SELECT regexp_replace(regexp_replace("value", '\-+$', ''), '^\-', '') AS "value"
+    FROM "hyphenated"
+  )
+  SELECT "value" FROM "trimmed";
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.strict_word_similarity(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$strict_word_similarity$function$
+;
+
+CREATE OR REPLACE FUNCTION public.strict_word_similarity_commutator_op(text, text)
+ RETURNS boolean
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$strict_word_similarity_commutator_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.strict_word_similarity_dist_commutator_op(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$strict_word_similarity_dist_commutator_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.strict_word_similarity_dist_op(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$strict_word_similarity_dist_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.strict_word_similarity_op(text, text)
+ RETURNS boolean
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$strict_word_similarity_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.tagproductinsert()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+
+BEGIN
+
+
+insert into tag(tag, tag_tsv) select a.tag1, a.to_tsvector from
+(select concat(p.name,' ', p.producttype)  as tag1 , to_tsvector('portuguese', unaccent(concat(p.name,' ', p.producttype)))
+from myneresourceinformation m, product p
+where replace(m.mri, 'mri::', '') = p.id
+except
+select t.tag, t.tag_tsv from tag t) a;
+
+insert into resourcetag(resource, tag) select a.id, a.tag_id from
+(select m.id, t.id as tag_id 
+from myneresourceinformation m, product p, tag t 
+where replace(m.mri, 'mri::', '') = p.id and concat(p.name,' ', p.producttype) = t.tag
+except
+select r.resource, r.tag from resourcetag r) a;
+
+RETURN NEW;
+
+END;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.taguserinsert()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+
+BEGIN
+
+
+insert into tag(tag, tag_tsv) select a.tag1, a.to_tsvector from
+(select concat(u.accountname,' ', u."name")  as tag1 , to_tsvector('portuguese', unaccent(concat(u.accountname,' ', u."name")))
+from myneresourceinformation m, myneuser u
+where replace(m.mri, 'mri::', '') = u.id
+except
+select t.tag, t.tag_tsv from tag t) a;
+
+insert into resourcetag(resource, tag) select a.id, a.tag_id from
+(select m.id, t.id as tag_id 
+from myneresourceinformation m, myneuser u, tag t 
+where replace(m.mri, 'mri::', '') = u.id and concat(u.accountname,' ', u."name") = t.tag
+except
+select r.resource, r.tag from resourcetag r) a;
+
+RETURN NEW;
+
+END;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.testecoluna(coluna character varying)
+ RETURNS character varying
+ LANGUAGE plpgsql
+AS $function$
+declare
+   generico_ean varchar;
+begin
+	
+	select (select concat('myneresourceinformation.', coluna) ) from myneresourceinformation
+	limit 1
+into generico_ean;
+   
+   return generico_ean;
+end;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.unaccent(regdictionary, text)
+ RETURNS text
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/unaccent', $function$unaccent_dict$function$
+;
+
+CREATE OR REPLACE FUNCTION public.unaccent(text)
+ RETURNS text
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/unaccent', $function$unaccent_dict$function$
+;
+
+CREATE OR REPLACE FUNCTION public.unaccent_init(internal)
+ RETURNS internal
+ LANGUAGE c
+ PARALLEL SAFE
+AS '$libdir/unaccent', $function$unaccent_init$function$
+;
+
+CREATE OR REPLACE FUNCTION public.unaccent_lexize(internal, internal, internal, internal)
+ RETURNS internal
+ LANGUAGE c
+ PARALLEL SAFE
+AS '$libdir/unaccent', $function$unaccent_lexize$function$
+;
+
+CREATE OR REPLACE FUNCTION public.update_views()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+
+BEGIN
+
+
+
+UPDATE
+    accountability 
+SET
+    views = (positives + negatives)
+FROM
+    (select a.id as id_1, a.positives as positives_1, a.negatives as negatives_1,
+    a.views as views_1 
+    from accountability a where a.views != (a.positives + a.negatives)) a
+WHERE
+    id = a.id_1;
+
+
+
+RETURN NEW;
+
+END;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.user_slug()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+
+BEGIN
+
+
+
+update myneuser set slug=o.slugify from
+(
+select o.id as id1, slugify(concat(o.name, ' ',
+(select (max((cast(substring(u.slug FROM '[0-9]+') as numeric))+1)) from public.myneuser u
+where u.slug notnull))) from
+(
+select o.id, slugify(o.name) as name,  ROW_NUMBER() OVER(ORDER BY o.id) AS RowNumber
+from public.myneuser o  where o.slug isnull
+) o) o
+where o.id1=id;
+
+
+
+RETURN NEW;
+
+END;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.userrelationajust()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+
+begin
+	
+
+insert into userrelation select ur.id, ur.type, ur.from_id, ur.to_id
+from
+(select uuid_generate_v4() as id, 'MENTOR' as type, p.to_id as from_id, p.from_id as to_id from  
+(select u.to_id, u.from_id from userrelation u where u.type = 'PUPIL') p
+left join 
+(select u.from_id, u.to_id from userrelation u where u.type = 'MENTOR') m
+on m.to_id = p.from_id and m.from_id = p.to_id
+where m.from_id isnull and m.to_id isnull) ur;
+
+
+insert into userrelation select ur.id, ur.type, ur.from_id, ur.to_id
+from
+(select uuid_generate_v4() as id, 'PUPIL' as type, m.to_id as from_id, m.from_id as to_id from  
+(select u.from_id, u.to_id from userrelation u where u.type = 'MENTOR') m
+left join
+(select u.to_id, u.from_id from userrelation u where u.type = 'PUPIL') p
+on m.to_id = p.from_id and m.from_id = p.to_id
+where p.from_id isnull and p.to_id isnull) ur;
+
+insert into userrelation select ur.id, ur.type, ur.from_id, ur.to_id
+from
+(
+select uuid_generate_v4() as id, 'PARTNER' as type, a.to_id as from_id, a.from_id as to_id from 
+(select u.from_id, u.to_id from userrelation u where u."type" = 'PARTNER') a
+left join 
+(select u.to_id, u.from_id from userrelation u where u."type" = 'PARTNER') b
+on a.from_id = b.to_id and a.to_id = b.from_id
+where b.to_id isnull and b.from_id isnull ) ur;
+
+
+insert into userrelation select ur.id, ur.type, ur.from_id, ur.to_id
+from
+(
+select uuid_generate_v4() as id, 'PARTNER' as type, b.to_id as from_id, b.from_id as to_id from 
+(select u.to_id, u.from_id  from userrelation u where u."type" = 'PARTNER') b
+left join 
+(select u.from_id, u.to_id from userrelation u where u."type" = 'PARTNER') a
+on a.from_id = b.to_id and a.to_id = b.from_id
+where b.to_id isnull and b.from_id isnull ) ur;
+
+
+insert into relationrequest select uuid_generate_v4(), r.*, now(), 'ACCEPTED'
+from
+(
+(select u.type, u.from_id, u.to_id from userrelation u)
+except
+(select r.type, r.from_id, r.to_id from relationrequest r where r.status = 'ACCEPTED')
+) r;
+
+
+RETURN NEW;
+
+END;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_generate_v1()
+ RETURNS uuid
+ LANGUAGE c
+ PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_generate_v1$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_generate_v1mc()
+ RETURNS uuid
+ LANGUAGE c
+ PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_generate_v1mc$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_generate_v3(namespace uuid, name text)
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_generate_v3$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_generate_v4()
+ RETURNS uuid
+ LANGUAGE c
+ PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_generate_v4$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_generate_v5(namespace uuid, name text)
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_generate_v5$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_nil()
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_nil$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_ns_dns()
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_ns_dns$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_ns_oid()
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_ns_oid$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_ns_url()
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_ns_url$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_ns_x500()
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_ns_x500$function$
+;
+
+CREATE OR REPLACE FUNCTION public.word_similarity(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity$function$
+;
+
+CREATE OR REPLACE FUNCTION public.word_similarity_commutator_op(text, text)
+ RETURNS boolean
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity_commutator_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.word_similarity_dist_commutator_op(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity_dist_commutator_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.word_similarity_dist_op(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity_dist_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.word_similarity_op(text, text)
+ RETURNS boolean
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity_op$function$
+;
