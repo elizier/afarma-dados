@@ -3,6 +3,7 @@
 CREATE SCHEMA public AUTHORIZATION postgres;
 
 
+
 -- Agregate tsvector
 
 CREATE AGGREGATE tsvector_agg(tsvector) (
@@ -11,113 +12,6 @@ CREATE AGGREGATE tsvector_agg(tsvector) (
    INITCOND = ''
 );
 
-
-
-
-CREATE OR REPLACE FUNCTION public.uuid_generate_v1()
- RETURNS uuid
- LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_generate_v1$function$
-;
-
-CREATE OR REPLACE FUNCTION public.uuid_generate_v1mc()
- RETURNS uuid
- LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_generate_v1mc$function$
-;
-
-CREATE OR REPLACE FUNCTION public.uuid_generate_v3(namespace uuid, name text)
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_generate_v3$function$
-;
-
-CREATE OR REPLACE FUNCTION public.uuid_generate_v4()
- RETURNS uuid
- LANGUAGE c
- PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_generate_v4$function$
-;
-
-CREATE OR REPLACE FUNCTION public.uuid_generate_v5(namespace uuid, name text)
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_generate_v5$function$
-;
-
-CREATE OR REPLACE FUNCTION public.uuid_nil()
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_nil$function$
-;
-
-CREATE OR REPLACE FUNCTION public.uuid_ns_dns()
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_ns_dns$function$
-;
-
-CREATE OR REPLACE FUNCTION public.uuid_ns_oid()
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_ns_oid$function$
-;
-
-CREATE OR REPLACE FUNCTION public.uuid_ns_url()
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_ns_url$function$
-;
-
-CREATE OR REPLACE FUNCTION public.uuid_ns_x500()
- RETURNS uuid
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/uuid-ossp', $function$uuid_ns_x500$function$
-;
-
-CREATE OR REPLACE FUNCTION public.word_similarity(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity$function$
-;
-
-CREATE OR REPLACE FUNCTION public.word_similarity_commutator_op(text, text)
- RETURNS boolean
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity_commutator_op$function$
-;
-
-CREATE OR REPLACE FUNCTION public.word_similarity_dist_commutator_op(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity_dist_commutator_op$function$
-;
-
-CREATE OR REPLACE FUNCTION public.word_similarity_dist_op(text, text)
- RETURNS real
- LANGUAGE c
- IMMUTABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity_dist_op$function$
-;
-
-CREATE OR REPLACE FUNCTION public.word_similarity_op(text, text)
- RETURNS boolean
- LANGUAGE c
- STABLE PARALLEL SAFE STRICT
-AS '$libdir/pg_trgm', $function$word_similarity_op$function$
-;
 
 -- DROP TYPE gtrgm;
 
@@ -434,20 +328,18 @@ CREATE TABLE public.postsummary (
 );
 
 
--- public.product definition
+-- public.price definition
 
 -- Drop table
 
--- DROP TABLE public.product;
+-- DROP TABLE public.price;
 
-CREATE TABLE public.product (
+CREATE TABLE public.price (
 	id varchar(36) NOT NULL,
 	active bool NOT NULL,
-	createdate timestamp NULL,
-	description varchar(255) NULL,
-	"name" varchar(255) NULL,
-	producttype varchar(255) NULL,
-	CONSTRAINT product_pkey PRIMARY KEY (id)
+	discount float8 NOT NULL,
+	price float8 NOT NULL,
+	CONSTRAINT price_pkey PRIMARY KEY (id)
 );
 
 -- Table Triggers
@@ -455,7 +347,25 @@ CREATE TABLE public.product (
 create trigger insertproducttag after
 insert
     on
-    public.product for each row execute function taguserinsert();
+    public.price for each row execute function tagproductinsert();
+
+
+-- public.product definition
+
+-- Drop table
+
+-- DROP TABLE public.product;
+
+CREATE TABLE public.product (
+	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
+	active bool NOT NULL DEFAULT true,
+	createdate timestamp NOT NULL DEFAULT now(),
+	description varchar(255) NULL,
+	"name" varchar(255) NULL,
+	producttype varchar(255) NULL,
+	details varchar(255) NULL,
+	CONSTRAINT product_pkey PRIMARY KEY (id)
+);
 
 
 -- public.productdetail definition
@@ -658,7 +568,7 @@ CREATE TABLE public.messagenotification (
 CREATE TABLE public.post (
 	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
 	createdate timestamp NOT NULL DEFAULT now(),
-	description varchar(255) NULL DEFAULT 'Myne Post DESC'::character varying,
+	description varchar(10240) NULL DEFAULT 'Myne Post DESC'::character varying,
 	title varchar(255) NULL DEFAULT 'Myne Post TITLE'::character varying,
 	owner_id varchar(36) NULL,
 	cancomment bool NOT NULL DEFAULT true,
@@ -1472,6 +1382,118 @@ END;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.findmyproducts(user_id character varying, type_ character varying)
+ RETURNS SETOF mynejsontype
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.mynejsontype%ROWTYPE;
+BEGIN
+
+ 	FOR resource_t in
+
+SELECT cast(uuid_generate_v4() AS VARCHAR) AS id
+	,'PRODUCT' AS "type"
+	,p.data
+FROM (
+	SELECT jsonb_build_object('user', jsonb_build_object('user', p.user) || jsonb_build_object('profile_image', i.data)) || p.product_data AS data
+	FROM (
+		SELECT p.user
+			,p.product_data || jsonb_build_object('nested', array_agg(p.nested)) AS product_data
+		FROM (
+			SELECT jsonb(u.data) AS user
+				,jsonb_build_object('type', f.type) || jsonb(f.data) AS product_data
+				,jsonb_build_object('type', s.type) || jsonb(s.data) AS nested
+			FROM findresourcebyowner(user_id) f
+			LEFT JOIN lateral findresourcebyowner(cast(f.data ->> 'id' AS VARCHAR)) AS s ON true
+			LEFT JOIN lateral findresourcedata(user_id) AS u ON true
+			WHERE f.type = 'PRODUCT'
+				AND cast(f.data ->> 'productType' AS VARCHAR) = coalesce(type_, cast(f.data ->> 'productType' AS VARCHAR))
+			) p
+		GROUP BY p.user
+			,p.product_data
+		) p
+	LEFT JOIN lateral findresourcebyowner(user_id) AS i ON true
+	WHERE i.type = 'PROFILE_IMAGE'
+	) p
+
+
+loop
+		RETURN NEXT resource_t;
+	
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.findownerdata(resource character varying)
+ RETURNS SETOF jsonresultowner
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.jsonresultowner%ROWTYPE;
+    mri_id character varying;
+BEGIN
+mri_id := replace(resource,'mri::','');
+   
+
+
+ 	FOR resource_t in
+
+	
+select o.* from findresourcedata(mri_id) f
+cross join lateral findresourcedata(f.owner) as o
+ 
+loop
+		RETURN NEXT resource_t;
+	
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.findownerresource(resource character varying)
+ RETURNS SETOF jsonresultowner
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.jsonresultowner%ROWTYPE;
+BEGIN
+
+ 	FOR resource_t in
+
+select f.owner as slave, f.type, f.id, f.data from 
+(
+select replace(m.mri,'mri::','') as mri, replace(mr.mri,'mri::','') as owner, m.type from public.myneresourceinformation m 
+left join ownerresources o on o.slave = m.id
+left join myneresourceinformation mr on o.owner=mr.id
+group by  m.mri, mr.mri, m.type) m
+cross join lateral public.findresourcebyowner(m.owner) as f
+where m.owner notnull and m.mri = replace(resource,'mri::','') --and f.owner = m.owner
+ 
+loop
+		RETURN NEXT resource_t;
+	
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.findrelatedposts(mri character varying, qtdepost integer)
  RETURNS SETOF feedresult
  LANGUAGE plpgsql
@@ -1606,8 +1628,12 @@ mri_id := replace(resource,'mri::','');
    then (select row_to_json(a) from (select * from public.accountability a where a.id= mri_id) a)
    when (mri_type) = 'INSIGHT'
    then (select row_to_json(i) from (select * from public.insight i where i.id= mri_id) i)
+   when (mri_type) = 'PRICE'
+   then (select row_to_json(p) from (select * from public.price p where p.id= mri_id) p)
     when (mri_type) = 'COMMENT' 
    then (select row_to_json(c) from (select c.id, c.createdate as "createDate", c.text from public.comment c  where c.id = mri_id) c)
+   when (mri_type) = 'PRODUCT' 
+   then (select row_to_json(p) from (select p.id, p.active, p.createdate as "createDate", p.description, p.name, p.producttype as "productType", cast(p.details as json) from public.product p  where p.id = mri_id) p)
    when (mri_type) = 'ADDRESS'
    then (select row_to_json(a) from (select * from public.address a where a.id= mri_id) a)
    else (select row_to_json(s) from (select s.id, s.createdate as "createDate", s.description, s.filename as "fileName", s.filetype as "fileType", s.s3url, s.solicitacaoid from public.s3file s where s.id= mri_id) s)
@@ -2345,6 +2371,32 @@ END;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.myneresearch(research character varying, user_id character varying)
+ RETURNS SETOF mynejsontype
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.mynejsontype%ROWTYPE;
+BEGIN
+
+ 	FOR resource_t in
+
+ select uuid_generate_v4() as id, 'POST' as type, to_json(research)  as data
+
+ 
+loop
+		RETURN NEXT resource_t;
+	
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.myneresearch(research character varying, research_type character varying, itens_by_page integer, page integer)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
@@ -2372,6 +2424,40 @@ where
 t.tag_tsv @@
 to_tsquery('portuguese',(select replace(unaccent(trim(research)),' ',' | ')))
 and m.type = 'POST'
+group by t.id , m.mri
+order by similarity desc
+limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+) m
+cross join lateral findresourcedata(m.resource_id) as rd
+cross join lateral findresourcebyowner(m.resource_id) as ro) r 
+group by r.owner, r.data_post) r
+left join lateral findresourcebyowner(r.owner) ro on true
+where ro.type = 'PROFILE_IMAGE' or ro.type isnull
+group by r.owner, r.data_post, r.data) r 
+cross join lateral findresourcedata(r.owner) as ro) r;
+
+
+
+
+elsif research_type = 'PRODUCT' then
+	RETURN query
+	
+select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json( r.data) as data from 
+(select jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
+from
+(select r.owner,  array_agg(ro.data), r.data_post, r.data as data_slave from
+(select r.owner, r.data_post, jsonb_build_object('nested', array_agg(r.data_slave)) as data from
+(select rd.owner, jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
+jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave from
+(select replace(m.mri,'mri::','') as resource_id, 
+t.id, tsvector_agg(t.tag_tsv), similarity(lower(unaccent(STRING_AGG(t.tag, ' '))), lower(unaccent(research)))
+from tag t, myneresourceinformation m, resourcetag r 
+where 
+ m.id = r.resource and r.tag = t.id and --m.type = :type and
+t.tag_tsv @@
+to_tsquery('portuguese',(select replace(unaccent(trim(research)),' ',' | ')))
+and m.type = 'PRODUCT'
 group by t.id , m.mri
 order by similarity desc
 limit coalesce(itens_by_page, 5)
@@ -2462,38 +2548,42 @@ offset coalesce(page, 0) * coalesce(itens_by_page, 5)
 ) m
 cross join lateral findresourcedata(m.resource_id) as rd
 LEFT   JOIN LATERAL findresourcebyowner(m.resource_id) ro ON true
-where ro.type isnull or ro.type = 'PROFILE_IMAGE') r;
+where ro.type isnull or ro.type = 'PROFILE_IMAGE') r
+
+union all
+
+select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json( r.data) as data from 
+(select jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
+from
+(select r.owner,  array_agg(ro.data), r.data_post, r.data as data_slave from
+(select r.owner, r.data_post, jsonb_build_object('nested', array_agg(r.data_slave)) as data from
+(select rd.owner, jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
+jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave from
+(select replace(m.mri,'mri::','') as resource_id, 
+t.id, tsvector_agg(t.tag_tsv), similarity(lower(unaccent(STRING_AGG(t.tag, ' '))), lower(unaccent(research)))
+from tag t, myneresourceinformation m, resourcetag r 
+where 
+ m.id = r.resource and r.tag = t.id and --m.type = :type and
+t.tag_tsv @@
+to_tsquery('portuguese',(select replace(unaccent(trim(research)),' ',' | ')))
+and m.type = 'PRODUCT'
+group by t.id , m.mri
+order by similarity desc
+limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+) m
+cross join lateral findresourcedata(m.resource_id) as rd
+cross join lateral findresourcebyowner(m.resource_id) as ro) r 
+group by r.owner, r.data_post) r
+left join lateral findresourcebyowner(r.owner) ro on true
+where ro.type = 'PROFILE_IMAGE' or ro.type isnull
+group by r.owner, r.data_post, r.data) r 
+cross join lateral findresourcedata(r.owner) as ro) r;
 
 end IF ;
   
  
 
-  
-  	
-   RETURN;
-
-END;
-
-$function$
-;
-
-CREATE OR REPLACE FUNCTION public.myneresearch(research character varying, user_id character varying)
- RETURNS SETOF mynejsontype
- LANGUAGE plpgsql
-AS $function$
-   DECLARE
-      resource_t public.mynejsontype%ROWTYPE;
-BEGIN
-
- 	FOR resource_t in
-
- select uuid_generate_v4() as id, 'POST' as type, to_json(research)  as data
-
- 
-loop
-		RETURN NEXT resource_t;
-	
-   END LOOP;
   
   	
    RETURN;
@@ -2537,6 +2627,7 @@ left join lateral findresourcebyowner(r.owner) ro on true
 where ro.type = 'PROFILE_IMAGE' or ro.type isnull
 group by r.owner, r.data_post, r.data) r 
 cross join lateral findresourcedata(r.owner) as ro) r
+group by r.data
 
 union all
 
@@ -2562,7 +2653,9 @@ cast( (select count(*) from myneresourceinformation m where m."type" ='POST') as
 ) m
 cross join lateral findresourcedata(m.resource_id) as rd
 LEFT   JOIN LATERAL findresourcebyowner(m.resource_id) ro ON true
-where ro.type isnull or ro.type = 'PROFILE_IMAGE') r
+where ro.type isnull or ro.type = 'PROFILE_IMAGE'
+) r
+group by r.data
 ) r
 order by random()
 
@@ -2972,71 +3065,6 @@ end;
 $function$
 ;
 
-CREATE OR REPLACE FUNCTION public.findownerdata(resource character varying)
- RETURNS SETOF jsonresultowner
- LANGUAGE plpgsql
-AS $function$
-   DECLARE
-      resource_t public.jsonresultowner%ROWTYPE;
-    mri_id character varying;
-BEGIN
-mri_id := replace(resource,'mri::','');
-   
-
-
- 	FOR resource_t in
-
-	
-select o.* from findresourcedata(mri_id) f
-cross join lateral findresourcedata(f.owner) as o
- 
-loop
-		RETURN NEXT resource_t;
-	
-   END LOOP;
-  
-  	
-   RETURN;
-
-END;
-
-$function$
-;
-
-
-CREATE OR REPLACE FUNCTION public.findownerresource(resource character varying)
- RETURNS SETOF jsonresultowner
- LANGUAGE plpgsql
-AS $function$
-   DECLARE
-      resource_t public.jsonresultowner%ROWTYPE;
-BEGIN
-
- 	FOR resource_t in
-
-select f.owner as slave, f.type, f.id, f.data from 
-(
-select replace(m.mri,'mri::','') as mri, replace(mr.mri,'mri::','') as owner, m.type from public.myneresourceinformation m 
-left join ownerresources o on o.slave = m.id
-left join myneresourceinformation mr on o.owner=mr.id
-group by  m.mri, mr.mri, m.type) m
-cross join lateral public.findresourcebyowner(m.owner) as f
-where m.owner notnull and m.mri = replace(resource,'mri::','') --and f.owner = m.owner
- 
-loop
-		RETURN NEXT resource_t;
-	
-   END LOOP;
-  
-  	
-   RETURN;
-
-END;
-
-$function$
-;
-
-
 CREATE OR REPLACE FUNCTION public.set_limit(real)
  RETURNS real
  LANGUAGE c
@@ -3386,3 +3414,107 @@ END;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.uuid_generate_v1()
+ RETURNS uuid
+ LANGUAGE c
+ PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_generate_v1$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_generate_v1mc()
+ RETURNS uuid
+ LANGUAGE c
+ PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_generate_v1mc$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_generate_v3(namespace uuid, name text)
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_generate_v3$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_generate_v4()
+ RETURNS uuid
+ LANGUAGE c
+ PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_generate_v4$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_generate_v5(namespace uuid, name text)
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_generate_v5$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_nil()
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_nil$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_ns_dns()
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_ns_dns$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_ns_oid()
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_ns_oid$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_ns_url()
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_ns_url$function$
+;
+
+CREATE OR REPLACE FUNCTION public.uuid_ns_x500()
+ RETURNS uuid
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/uuid-ossp', $function$uuid_ns_x500$function$
+;
+
+CREATE OR REPLACE FUNCTION public.word_similarity(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity$function$
+;
+
+CREATE OR REPLACE FUNCTION public.word_similarity_commutator_op(text, text)
+ RETURNS boolean
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity_commutator_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.word_similarity_dist_commutator_op(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity_dist_commutator_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.word_similarity_dist_op(text, text)
+ RETURNS real
+ LANGUAGE c
+ IMMUTABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity_dist_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.word_similarity_op(text, text)
+ RETURNS boolean
+ LANGUAGE c
+ STABLE PARALLEL SAFE STRICT
+AS '$libdir/pg_trgm', $function$word_similarity_op$function$
+;
