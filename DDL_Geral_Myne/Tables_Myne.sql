@@ -8,11 +8,6 @@ CREATE TABLE public."_exec" (
 	"_" text NULL
 );
 
--- Permissions
-
-ALTER TABLE public."_exec" OWNER TO postgres;
-GRANT ALL ON TABLE public."_exec" TO postgres;
-
 
 -- public.address definition
 
@@ -36,11 +31,6 @@ CREATE TABLE public.address (
 	CONSTRAINT address_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.address OWNER TO postgres;
-GRANT ALL ON TABLE public.address TO postgres;
-
 
 -- public.card definition
 
@@ -56,11 +46,6 @@ CREATE TABLE public.card (
 	CONSTRAINT card_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.card OWNER TO postgres;
-GRANT ALL ON TABLE public.card TO postgres;
-
 
 -- public.cardview definition
 
@@ -73,11 +58,6 @@ CREATE TABLE public.cardview (
 	CONSTRAINT cardview_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.cardview OWNER TO postgres;
-GRANT ALL ON TABLE public.cardview TO postgres;
-
 
 -- public.cmda_exec definition
 
@@ -88,11 +68,6 @@ GRANT ALL ON TABLE public.cardview TO postgres;
 CREATE TABLE public.cmda_exec (
 	cmda_output text NULL
 );
-
--- Permissions
-
-ALTER TABLE public.cmda_exec OWNER TO postgres;
-GRANT ALL ON TABLE public.cmda_exec TO postgres;
 
 
 -- public.config definition
@@ -111,11 +86,6 @@ CREATE TABLE public.config (
 	CONSTRAINT config_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.config OWNER TO postgres;
-GRANT ALL ON TABLE public.config TO postgres;
-
 
 -- public.financialinfo definition
 
@@ -131,11 +101,6 @@ CREATE TABLE public.financialinfo (
 	valor float8 NOT NULL,
 	CONSTRAINT financialinfo_pkey PRIMARY KEY (id)
 );
-
--- Permissions
-
-ALTER TABLE public.financialinfo OWNER TO postgres;
-GRANT ALL ON TABLE public.financialinfo TO postgres;
 
 
 -- public."groups" definition
@@ -154,11 +119,6 @@ CREATE TABLE public."groups" (
 	CONSTRAINT uk_iv95crpat83rqqgixej9uhm9m UNIQUE (slug)
 );
 
--- Permissions
-
-ALTER TABLE public."groups" OWNER TO postgres;
-GRANT ALL ON TABLE public."groups" TO postgres;
-
 
 -- public.identificationdocument definition
 
@@ -175,11 +135,6 @@ CREATE TABLE public.identificationdocument (
 	CONSTRAINT identificationdocument_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.identificationdocument OWNER TO postgres;
-GRANT ALL ON TABLE public.identificationdocument TO postgres;
-
 
 -- public.insight definition
 
@@ -195,11 +150,6 @@ CREATE TABLE public.insight (
 	url varchar(255) NULL,
 	CONSTRAINT insight_pkey PRIMARY KEY (id)
 );
-
--- Permissions
-
-ALTER TABLE public.insight OWNER TO postgres;
-GRANT ALL ON TABLE public.insight TO postgres;
 
 
 -- public.launch definition
@@ -218,11 +168,6 @@ CREATE TABLE public.launch (
 	CONSTRAINT launch_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.launch OWNER TO postgres;
-GRANT ALL ON TABLE public.launch TO postgres;
-
 
 -- public.launchworkflow definition
 
@@ -238,11 +183,6 @@ CREATE TABLE public.launchworkflow (
 	CONSTRAINT launchworkflow_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.launchworkflow OWNER TO postgres;
-GRANT ALL ON TABLE public.launchworkflow TO postgres;
-
 
 -- public."like" definition
 
@@ -256,11 +196,6 @@ CREATE TABLE public."like" (
 	"type" varchar(255) NULL,
 	CONSTRAINT like_pkey PRIMARY KEY (id)
 );
-
--- Permissions
-
-ALTER TABLE public."like" OWNER TO postgres;
-GRANT ALL ON TABLE public."like" TO postgres;
 
 
 -- public.mynejsondto definition
@@ -277,11 +212,6 @@ CREATE TABLE public.mynejsondto (
 	CONSTRAINT mynejsondto_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.mynejsondto OWNER TO postgres;
-GRANT ALL ON TABLE public.mynejsondto TO postgres;
-
 
 -- public.mynerelationjsondto definition
 
@@ -295,11 +225,6 @@ CREATE TABLE public.mynerelationjsondto (
 	"type" varchar(255) NULL,
 	CONSTRAINT mynerelationjsondto_pkey PRIMARY KEY (id)
 );
-
--- Permissions
-
-ALTER TABLE public.mynerelationjsondto OWNER TO postgres;
-GRANT ALL ON TABLE public.mynerelationjsondto TO postgres;
 
 
 -- public.myneuser definition
@@ -332,15 +257,10 @@ create trigger updateslug after
 insert
     on
     public.myneuser for each row execute function user_slug();
-create trigger inserttag after
+create trigger insertusertag after
 insert
     on
-    public.myneuser for each row execute function taginsert();
-
--- Permissions
-
-ALTER TABLE public.myneuser OWNER TO postgres;
-GRANT ALL ON TABLE public.myneuser TO postgres;
+    public.myneuser for each row execute function taguserinsert();
 
 
 -- public.payment definition
@@ -355,11 +275,6 @@ CREATE TABLE public.payment (
 	value float8 NOT NULL,
 	CONSTRAINT payment_pkey PRIMARY KEY (id)
 );
-
--- Permissions
-
-ALTER TABLE public.payment OWNER TO postgres;
-GRANT ALL ON TABLE public.payment TO postgres;
 
 
 -- public.phone definition
@@ -376,11 +291,6 @@ CREATE TABLE public.phone (
 	CONSTRAINT phone_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.phone OWNER TO postgres;
-GRANT ALL ON TABLE public.phone TO postgres;
-
 
 -- public.postsummary definition
 
@@ -393,10 +303,27 @@ CREATE TABLE public.postsummary (
 	CONSTRAINT postsummary_pkey PRIMARY KEY (id)
 );
 
--- Permissions
 
-ALTER TABLE public.postsummary OWNER TO postgres;
-GRANT ALL ON TABLE public.postsummary TO postgres;
+-- public.price definition
+
+-- Drop table
+
+-- DROP TABLE public.price;
+
+CREATE TABLE public.price (
+	id varchar(36) NOT NULL,
+	active bool NOT NULL,
+	discount float8 NOT NULL,
+	price float8 NOT NULL,
+	CONSTRAINT price_pkey PRIMARY KEY (id)
+);
+
+-- Table Triggers
+
+create trigger insertproducttag after
+insert
+    on
+    public.price for each row execute function tagproductinsert();
 
 
 -- public.product definition
@@ -406,19 +333,30 @@ GRANT ALL ON TABLE public.postsummary TO postgres;
 -- DROP TABLE public.product;
 
 CREATE TABLE public.product (
-	id varchar(36) NOT NULL,
-	active bool NOT NULL,
-	createdate timestamp NULL,
+	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
+	active bool NOT NULL DEFAULT true,
+	createdate timestamp NOT NULL DEFAULT now(),
 	description varchar(255) NULL,
 	"name" varchar(255) NULL,
 	producttype varchar(255) NULL,
+	details varchar(255) NULL,
 	CONSTRAINT product_pkey PRIMARY KEY (id)
 );
 
--- Permissions
 
-ALTER TABLE public.product OWNER TO postgres;
-GRANT ALL ON TABLE public.product TO postgres;
+-- public.productdetail definition
+
+-- Drop table
+
+-- DROP TABLE public.productdetail;
+
+CREATE TABLE public.productdetail (
+	id varchar(36) NOT NULL,
+	description varchar(255) NULL,
+	"key" varchar(255) NULL,
+	"_order" int4 NULL,
+	CONSTRAINT productdetail_pkey PRIMARY KEY (id)
+);
 
 
 -- public.resourcebyownerdto definition
@@ -435,11 +373,6 @@ CREATE TABLE public.resourcebyownerdto (
 	CONSTRAINT resourcebyownerdto_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.resourcebyownerdto OWNER TO postgres;
-GRANT ALL ON TABLE public.resourcebyownerdto TO postgres;
-
 
 -- public.resourcedto definition
 
@@ -454,11 +387,6 @@ CREATE TABLE public.resourcedto (
 	CONSTRAINT resourcedto_pkey PRIMARY KEY (findresourcedata)
 );
 
--- Permissions
-
-ALTER TABLE public.resourcedto OWNER TO postgres;
-GRANT ALL ON TABLE public.resourcedto TO postgres;
-
 
 -- public.retorno definition
 
@@ -469,11 +397,6 @@ GRANT ALL ON TABLE public.resourcedto TO postgres;
 CREATE TABLE public.retorno (
 	"case" text NULL
 );
-
--- Permissions
-
-ALTER TABLE public.retorno OWNER TO postgres;
-GRANT ALL ON TABLE public.retorno TO postgres;
 
 
 -- public.s3file definition
@@ -493,11 +416,6 @@ CREATE TABLE public.s3file (
 	CONSTRAINT s3file_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.s3file OWNER TO postgres;
-GRANT ALL ON TABLE public.s3file TO postgres;
-
 
 -- public.site definition
 
@@ -510,11 +428,6 @@ CREATE TABLE public.site (
 	url varchar(255) NULL,
 	CONSTRAINT site_pkey PRIMARY KEY (id)
 );
-
--- Permissions
-
-ALTER TABLE public.site OWNER TO postgres;
-GRANT ALL ON TABLE public.site TO postgres;
 
 
 -- public.socialnetwork definition
@@ -532,11 +445,6 @@ CREATE TABLE public.socialnetwork (
 	CONSTRAINT socialnetwork_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.socialnetwork OWNER TO postgres;
-GRANT ALL ON TABLE public.socialnetwork TO postgres;
-
 
 -- public.t_e definition
 
@@ -547,11 +455,6 @@ GRANT ALL ON TABLE public.socialnetwork TO postgres;
 CREATE TABLE public.t_e (
 	docs text NULL
 );
-
--- Permissions
-
-ALTER TABLE public.t_e OWNER TO postgres;
-GRANT ALL ON TABLE public.t_e TO postgres;
 
 
 -- public.tag definition
@@ -568,11 +471,6 @@ CREATE TABLE public.tag (
 	CONSTRAINT tag_pkey PRIMARY KEY (id)
 );
 
--- Permissions
-
-ALTER TABLE public.tag OWNER TO postgres;
-GRANT ALL ON TABLE public.tag TO postgres;
-
 
 -- public.tmp_docs definition
 
@@ -584,11 +482,6 @@ CREATE TABLE public.tmp_docs (
 	"data" text NULL
 );
 
--- Permissions
-
-ALTER TABLE public.tmp_docs OWNER TO postgres;
-GRANT ALL ON TABLE public.tmp_docs TO postgres;
-
 
 -- public.world1 definition
 
@@ -599,11 +492,6 @@ GRANT ALL ON TABLE public.tmp_docs TO postgres;
 CREATE TABLE public.world1 (
 	"data" json NULL
 );
-
--- Permissions
-
-ALTER TABLE public.world1 OWNER TO postgres;
-GRANT ALL ON TABLE public.world1 TO postgres;
 
 
 -- public.groupmembers definition
@@ -622,11 +510,6 @@ CREATE TABLE public.groupmembers (
 	CONSTRAINT fk1pck7dir09c5yques4b3gakii FOREIGN KEY (user_id) REFERENCES public.myneuser(id),
 	CONSTRAINT fk6suac69cc5vn69fwbp96i0xnl FOREIGN KEY (group_id) REFERENCES public."groups"(id)
 );
-
--- Permissions
-
-ALTER TABLE public.groupmembers OWNER TO postgres;
-GRANT ALL ON TABLE public.groupmembers TO postgres;
 
 
 -- public.messagenotification definition
@@ -651,11 +534,6 @@ CREATE TABLE public.messagenotification (
 	CONSTRAINT fkbujicj06wbwl43xkwraffia2j FOREIGN KEY (receiverid) REFERENCES public.myneuser(id)
 );
 
--- Permissions
-
-ALTER TABLE public.messagenotification OWNER TO postgres;
-GRANT ALL ON TABLE public.messagenotification TO postgres;
-
 
 -- public.post definition
 
@@ -666,18 +544,13 @@ GRANT ALL ON TABLE public.messagenotification TO postgres;
 CREATE TABLE public.post (
 	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
 	createdate timestamp NOT NULL DEFAULT now(),
-	description varchar(255) NULL DEFAULT 'Myne Post DESC'::character varying,
+	description varchar(10240) NULL DEFAULT 'Myne Post DESC'::character varying,
 	title varchar(255) NULL DEFAULT 'Myne Post TITLE'::character varying,
 	owner_id varchar(36) NULL,
 	cancomment bool NOT NULL DEFAULT true,
 	CONSTRAINT post_pkey PRIMARY KEY (id),
 	CONSTRAINT fksmimo05ej6b8u91r6omk3n85g FOREIGN KEY (owner_id) REFERENCES public.myneuser(id)
 );
-
--- Permissions
-
-ALTER TABLE public.post OWNER TO postgres;
-GRANT ALL ON TABLE public.post TO postgres;
 
 
 -- public.relationrequest definition
@@ -698,11 +571,6 @@ CREATE TABLE public.relationrequest (
 	CONSTRAINT fk65ggw39f5ih5r58nx74tam11i FOREIGN KEY (from_id) REFERENCES public.myneuser(id),
 	CONSTRAINT fknjawc3oheuvp3vu2o7jbvo5g1 FOREIGN KEY (to_id) REFERENCES public.myneuser(id)
 );
-
--- Permissions
-
-ALTER TABLE public.relationrequest OWNER TO postgres;
-GRANT ALL ON TABLE public.relationrequest TO postgres;
 
 
 -- public.userrelation definition
@@ -728,11 +596,6 @@ create trigger ajustuserrelation after
 insert
     on
     public.userrelation for each row execute function userrelationajust();
-
--- Permissions
-
-ALTER TABLE public.userrelation OWNER TO postgres;
-GRANT ALL ON TABLE public.userrelation TO postgres;
 
 
 -- public.myneresourceinformation definition
@@ -762,11 +625,6 @@ CREATE TABLE public.myneresourceinformation (
 	CONSTRAINT fkso12pi6ebo8rcjv3e9pi3ybnd FOREIGN KEY (post) REFERENCES public.post(id)
 );
 
--- Permissions
-
-ALTER TABLE public.myneresourceinformation OWNER TO postgres;
-GRANT ALL ON TABLE public.myneresourceinformation TO postgres;
-
 
 -- public.ownerresources definition
 
@@ -784,11 +642,6 @@ CREATE TABLE public.ownerresources (
 	CONSTRAINT fkoxoer1503fnjf9g63kcm9bujx FOREIGN KEY ("owner") REFERENCES public.myneresourceinformation(id)
 );
 
--- Permissions
-
-ALTER TABLE public.ownerresources OWNER TO postgres;
-GRANT ALL ON TABLE public.ownerresources TO postgres;
-
 
 -- public.resourcetag definition
 
@@ -804,11 +657,6 @@ CREATE TABLE public.resourcetag (
 	CONSTRAINT fkbecq978ibubt369vfp12n1hqy FOREIGN KEY (tag) REFERENCES public.tag(id),
 	CONSTRAINT fkfl5m64glrhopquj9e8eb006gn FOREIGN KEY (resource) REFERENCES public.myneresourceinformation(id)
 );
-
--- Permissions
-
-ALTER TABLE public.resourcetag OWNER TO postgres;
-GRANT ALL ON TABLE public.resourcetag TO postgres;
 
 
 -- public.accountability definition
@@ -836,11 +684,6 @@ update
     on
     public.accountability for each row execute function update_views();
 
--- Permissions
-
-ALTER TABLE public.accountability OWNER TO postgres;
-GRANT ALL ON TABLE public.accountability TO postgres;
-
 
 -- public."comment" definition
 
@@ -860,8 +703,3 @@ CREATE TABLE public."comment" (
 	CONSTRAINT fk4m11y2dem5m00480fejdlb8t7 FOREIGN KEY (postowner_id) REFERENCES public.ownerresources(id),
 	CONSTRAINT fkbqaxmjh45xx9x2f41do2hqi84 FOREIGN KEY (owner_id) REFERENCES public.myneresourceinformation(id)
 );
-
--- Permissions
-
-ALTER TABLE public."comment" OWNER TO postgres;
-GRANT ALL ON TABLE public."comment" TO postgres;
