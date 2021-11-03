@@ -109,7 +109,7 @@ where
  m.id = r.resource and r.tag = t.id and --m.type = :type and
 t.tag_tsv @@
 to_tsquery('portuguese',(select replace(unaccent(trim(:busca)),' ',' | ')))
-and m.type = 'POST'
+and m.type = 'PRODUCT'
 group by t.id , m.mri
 order by similarity desc
 limit coalesce(:itens_by_page, 5)
@@ -332,8 +332,7 @@ group by r.owner, r.data_post) r
 left join lateral findresourcebyowner(r.owner) ro on true
 where ro.type = 'PROFILE_IMAGE' or ro.type isnull
 group by r.owner, r.data_post, r.data) r 
-cross join lateral findresourcedata(r.owner) as ro
-grouo by data) r
+cross join lateral findresourcedata(r.owner) as ro) r
 
 union all
 
@@ -359,8 +358,7 @@ cast( (select count(*) from myneresourceinformation m where m."type" ='POST') as
 ) m
 cross join lateral findresourcedata(m.resource_id) as rd
 LEFT   JOIN LATERAL findresourcebyowner(m.resource_id) ro ON true
-where ro.type isnull or ro.type = 'PROFILE_IMAGE'
-group by data) r
+where ro.type isnull or ro.type = 'PROFILE_IMAGE') r
 ) r
 order by random()
 
@@ -412,6 +410,47 @@ FROM (
 	) p
 	
 	
+
 	
+	
+	
+	
+	
+	
+select replace(m.mri,'mri::','') as resource_id, 
+t.id, tsvector_agg(t.tag_tsv), similarity(lower(unaccent(STRING_AGG(t.tag, ' '))), lower(unaccent(:busca)))
+from tag t, myneresourceinformation m, resourcetag r 
+where 
+ m.id = r.resource and r.tag = t.id and m.type = 'PRODUCT' and
+t.tag_tsv @@
+to_tsquery('portuguese',(select replace(unaccent(trim(:busca)),' ',' | ')))
+group by t.id , m.mri
+order by similarity desc
+limit coalesce(:itens_by_page, 5)
+offset coalesce(:page, 0) * coalesce(:itens_by_page, 5)
 
 
+
+select cast(uuid_generate_v4() as varchar) as id, 'USER' as type,  to_json(r.data) from 
+(select jsonb_build_object('type', rd.type) || jsonb(rd.data)|| jsonb_build_object('profile_image', ro.data) as data from
+(select replace(m.mri,'mri::','') as resource_id, 
+t.id, tsvector_agg(t.tag_tsv), similarity(lower(unaccent(STRING_AGG(t.tag, ' '))), lower(unaccent(:busca)))
+from tag t, myneresourceinformation m, resourcetag r 
+where 
+ m.id = r.resource and r.tag = t.id and m.type = 'PRODUCT' and
+t.tag_tsv @@
+to_tsquery('portuguese',(select replace(unaccent(trim(:busca)),' ',' | ')))
+group by t.id , m.mri
+order by similarity desc
+limit coalesce(:itens_by_page, 5)
+offset coalesce(:page, 0) * coalesce(:itens_by_page, 5)
+) m
+cross join lateral findresourcedata(m.resource_id) as rd
+LEFT   JOIN LATERAL findresourcebyowner(m.resource_id) ro ON true
+where ro.type isnull or ro.type = 'PROFILE_IMAGE') r;
+
+select findmyneglobalfeed(10,0)
+
+select findresourcedata('3dc8a3c4-623e-454e-b5d7-4af24dd11d52')
+
+select myneresearch('BOOK', 'PRODUCT', 10, 0)
