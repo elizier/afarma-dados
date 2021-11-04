@@ -251,16 +251,7 @@ CREATE TABLE public.myneuser (
 	CONSTRAINT uk_78xrwtd24kvmcjhsc006sjivr UNIQUE (slug)
 );
 
--- Table Triggers
 
-create trigger updateslug after
-insert
-    on
-    public.myneuser for each row execute function user_slug();
-create trigger insertusertag after
-insert
-    on
-    public.myneuser for each row execute function taguserinsert();
 
 
 -- public.payment definition
@@ -317,13 +308,6 @@ CREATE TABLE public.price (
 	price float8 NOT NULL,
 	CONSTRAINT price_pkey PRIMARY KEY (id)
 );
-
--- Table Triggers
-
-create trigger insertproducttag after
-insert
-    on
-    public.price for each row execute function tagproductinsert();
 
 
 -- public.product definition
@@ -590,13 +574,6 @@ CREATE TABLE public.userrelation (
 	CONSTRAINT fkbt9fywtkux1b7qs1ync0nqy9 FOREIGN KEY (to_id) REFERENCES public.myneuser(id)
 );
 
--- Table Triggers
-
-create trigger ajustuserrelation after
-insert
-    on
-    public.userrelation for each row execute function userrelationajust();
-
 
 -- public.myneresourceinformation definition
 
@@ -675,15 +652,6 @@ CREATE TABLE public.accountability (
 	CONSTRAINT fk7gia2cy80rv51jxoxsibu7hsf FOREIGN KEY (owner_id) REFERENCES public.myneresourceinformation(id)
 );
 
--- Table Triggers
-
-create trigger updateview after
-insert
-    or
-update
-    on
-    public.accountability for each row execute function update_views();
-
 
 -- public."comment" definition
 
@@ -703,3 +671,39 @@ CREATE TABLE public."comment" (
 	CONSTRAINT fk4m11y2dem5m00480fejdlb8t7 FOREIGN KEY (postowner_id) REFERENCES public.ownerresources(id),
 	CONSTRAINT fkbqaxmjh45xx9x2f41do2hqi84 FOREIGN KEY (owner_id) REFERENCES public.myneresourceinformation(id)
 );
+
+
+
+-- Table Triggers
+
+create trigger ajustuserrelation after
+insert
+    on
+    public.userrelation for each row execute function userrelationajust();
+
+-- Table Triggers
+
+create trigger updateslug after
+insert
+    on
+    public.myneuser for each row execute function user_slug();
+create trigger insertusertag after
+insert
+    on
+    public.myneuser for each row execute function taguserinsert();
+    
+-- Table Triggers
+
+create trigger insertproducttag after
+insert
+    on
+    public.price for each row execute function tagproductinsert();
+    
+-- Table Triggers
+
+create trigger updateview after
+insert
+    or
+update
+    on
+    public.accountability for each row execute function update_views();
