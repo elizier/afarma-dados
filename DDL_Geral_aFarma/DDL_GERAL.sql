@@ -359,6 +359,7 @@ CREATE TABLE afarma.perfil (
 CREATE TABLE afarma.photo (
 	id varchar(36) NOT NULL,
 	"path" varchar(255) NULL,
+	photo bytea NULL,
 	CONSTRAINT photo_pkey PRIMARY KEY (id)
 );
 
@@ -373,26 +374,6 @@ CREATE TABLE afarma.principioativo (
 	id varchar(36) NOT NULL,
 	descricao varchar(255) NULL,
 	CONSTRAINT principioativo_pkey PRIMARY KEY (id)
-);
-
-
--- afarma.produto_afarma definition
-
--- Drop table
-
--- DROP TABLE afarma.produto_afarma;
-
-CREATE TABLE afarma.produto_afarma (
-	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
-	ean varchar(10240) NULL,
-	nome varchar(10240) NULL,
-	valor float8 NOT NULL,
-	photo_id varchar(36) NULL,
-	ean_similar varchar(10240) NULL,
-	active bool NOT NULL DEFAULT true,
-	produto_tsv tsvector NULL,
-	CONSTRAINT produtoafarma_pkey PRIMARY KEY (id),
-	CONSTRAINT produtoafarma_unique UNIQUE (ean)
 );
 
 
@@ -469,6 +450,23 @@ CREATE TABLE afarma.registrocotacao (
 	status varchar(255) NULL,
 	uf varchar(255) NULL,
 	CONSTRAINT registrocotacao_pkey PRIMARY KEY (id)
+);
+
+
+-- afarma.registrocotacao_afarma definition
+
+-- Drop table
+
+-- DROP TABLE afarma.registrocotacao_afarma;
+
+CREATE TABLE afarma.registrocotacao_afarma (
+	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
+	"data" timestamp NOT NULL DEFAULT now(),
+	email varchar(255) NULL,
+	nome varchar(255) NULL,
+	status varchar(255) NULL,
+	uf varchar(255) NULL,
+	CONSTRAINT registrocotacao_pkey_afarma PRIMARY KEY (id)
 );
 
 
@@ -874,6 +872,27 @@ CREATE TABLE afarma.produto (
 );
 
 
+-- afarma.produto_afarma definition
+
+-- Drop table
+
+-- DROP TABLE afarma.produto_afarma;
+
+CREATE TABLE afarma.produto_afarma (
+	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
+	ean varchar(10240) NULL,
+	nome varchar(10240) NULL,
+	valor float8 NOT NULL,
+	photo_id varchar(36) NULL,
+	ean_similar varchar(10240) NULL,
+	active bool NOT NULL DEFAULT true,
+	produto_tsv tsvector NULL,
+	CONSTRAINT produtoafarma_pkey PRIMARY KEY (id),
+	CONSTRAINT produtoafarma_unique UNIQUE (ean),
+	CONSTRAINT fke8tlic46ja7wjq1yq2arbqoyc FOREIGN KEY (photo_id) REFERENCES afarma.photo(id)
+);
+
+
 -- afarma.produtocrawler definition
 
 -- Drop table
@@ -1051,6 +1070,32 @@ CREATE TABLE afarma.itemprodutocesta (
 );
 
 
+-- afarma.itenscot_afarma definition
+
+-- Drop table
+
+-- DROP TABLE afarma.itenscot_afarma;
+
+CREATE TABLE afarma.itenscot_afarma (
+	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
+	quantidade int4 NOT NULL,
+	cotacao_id varchar(36) NULL,
+	produto_id varchar(36) NULL,
+	id_produto varchar(36) NULL,
+	cotacao varchar(36) NULL,
+	CONSTRAINT itenscot_afarma_pkey PRIMARY KEY (id),
+	CONSTRAINT fk7ijnm2ww9nhwdxlo4dd305ktf FOREIGN KEY (produto_id) REFERENCES afarma.produto_afarma(id),
+	CONSTRAINT fkr01bw3c9h18xuv4pk8rb082w3 FOREIGN KEY (cotacao_id) REFERENCES afarma.registrocotacao_afarma(id)
+);
+
+-- Table Triggers
+
+create trigger equality_itenscot after
+insert
+    on
+    afarma.itenscot_afarma for each row execute function afarma.itenscot_equality();
+
+
 -- afarma.loja_usuario definition
 
 -- Drop table
@@ -1115,6 +1160,34 @@ CREATE TABLE afarma.receita_produto (
 	item_id varchar(36) NOT NULL,
 	CONSTRAINT fkdohphs8dby6cp059yx5g5yq8b FOREIGN KEY (receita_id) REFERENCES afarma.receita(id),
 	CONSTRAINT fksjavq09rl26bhvwowfhi909wv FOREIGN KEY (item_id) REFERENCES afarma.itemprodutocesta(id)
+);
+
+
+-- afarma.registro_cotacao definition
+
+-- Drop table
+
+-- DROP TABLE afarma.registro_cotacao;
+
+CREATE TABLE afarma.registro_cotacao (
+	registro_id varchar(36) NOT NULL,
+	cotacao_id varchar(36) NOT NULL,
+	CONSTRAINT fki7pb8pp8lo02wxvyhkiq5offv FOREIGN KEY (cotacao_id) REFERENCES afarma.registrocotacao(id),
+	CONSTRAINT fkm7iy3irb1pp4j298blg7cj3fy FOREIGN KEY (registro_id) REFERENCES afarma.itenscot_afarma(id)
+);
+
+
+-- afarma.cotacao_produto definition
+
+-- Drop table
+
+-- DROP TABLE afarma.cotacao_produto;
+
+CREATE TABLE afarma.cotacao_produto (
+	cotacao_id varchar(36) NOT NULL,
+	produto_id varchar(36) NOT NULL,
+	CONSTRAINT fk1yny5atja1x4jojfkap1il3va FOREIGN KEY (cotacao_id) REFERENCES afarma.itenscot_afarma(id),
+	CONSTRAINT fkb9vc6h7yikt3y5ldrk54nc2o8 FOREIGN KEY (produto_id) REFERENCES afarma.produto_afarma(id)
 );
 
 
@@ -2458,6 +2531,31 @@ END;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION afarma.itenscot_equality()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+
+BEGIN
+	
+
+
+UPDATE afarma.itenscot_afarma set cotacao = cotacao_id where cotacao isnull;
+
+update afarma.itenscot_afarma set id_produto = produto_id where id_produto isnull;
+
+update afarma.itenscot_afarma set  produto_id = id_produto  where produto_id isnull;
+
+UPDATE afarma.itenscot_afarma set cotacao_id = cotacao  where cotacao_id isnull;
+
+
+RETURN NEW;
+
+END;
+
+$function$
+;
+
 CREATE OR REPLACE FUNCTION afarma.menor_preco_grupo(ean_generico character varying)
  RETURNS character varying
  LANGUAGE plpgsql
@@ -2542,10 +2640,11 @@ end;
 $function$
 ;
 
-
 -- DROP SCHEMA public;
 
 CREATE SCHEMA public AUTHORIZATION postgres;
+
+COMMENT ON SCHEMA public IS 'standard public schema';
 
 -- DROP TYPE gtrgm;
 
@@ -2731,6 +2830,19 @@ CREATE TABLE public.product_ref (
 	category varchar(255) NULL,
 	description varchar(10240) NULL,
 	CONSTRAINT product_ref_pkey PRIMARY KEY (id)
+);
+
+
+-- public.resourcedto definition
+
+-- Drop table
+
+-- DROP TABLE public.resourcedto;
+
+CREATE TABLE public.resourcedto (
+	id varchar(255) NOT NULL,
+	"data" varchar(255) NULL,
+	CONSTRAINT resourcedto_pkey PRIMARY KEY (id)
 );
 
 
@@ -2986,14 +3098,65 @@ WITH DATA;
 
 
 
-CREATE OR REPLACE FUNCTION public.dblink(text, text, boolean)
+CREATE OR REPLACE FUNCTION public.cotacao_afarma(cotid character varying)
+ RETURNS SETOF afarma.ctitem_json
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t afarma.ctitem_json%ROWTYPE;
+BEGIN
+
+return query
+
+select cast(uuid_generate_v4() as varchar) as id, row_to_json(c.*) as data from 
+(select  ra.id as cotacao_id, sum(ia.quantidade * pa.valor) as total 
+from afarma.itenscot_afarma ia , afarma.produto_afarma pa, afarma.registrocotacao_afarma ra 
+where ia.produto_id = pa.id and ra.id = ia.cotacao_id and ra.id = cotid and pa.valor notnull
+group by ra.id) c ;
+
+
+END;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.cotacaodetalhado_afarma(cotid character varying)
+ RETURNS SETOF afarma.ctitem_json
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t afarma.ctitem_json%ROWTYPE;
+BEGIN
+
+ 	FOR resource_t in
+
+select cast(uuid_generate_v4() as varchar) as id, row_to_json(c.*) as data from 
+(select ia.id_produto, ra.id as cotacao_id, pa.nome, ia.quantidade, pa.valor , (ia.quantidade * pa.valor) as total 
+from afarma.itenscot_afarma ia , afarma.produto_afarma pa, afarma.registrocotacao_afarma ra 
+where ia.produto_id = pa.id and ra.id = ia.cotacao_id and ra.id = cotid and pa.valor notnull) c
+
+ 
+loop
+		RETURN NEXT resource_t;
+	
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink(text)
  RETURNS SETOF record
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
 AS '$libdir/dblink', $function$dblink_record$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink(text)
+CREATE OR REPLACE FUNCTION public.dblink(text, text, boolean)
  RETURNS SETOF record
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
@@ -3042,13 +3205,6 @@ CREATE OR REPLACE FUNCTION public.dblink_cancel_query(text)
 AS '$libdir/dblink', $function$dblink_cancel_query$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_close(text)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_close$function$
-;
-
 CREATE OR REPLACE FUNCTION public.dblink_close(text, boolean)
  RETURNS text
  LANGUAGE c
@@ -3056,7 +3212,7 @@ CREATE OR REPLACE FUNCTION public.dblink_close(text, boolean)
 AS '$libdir/dblink', $function$dblink_close$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_close(text, text)
+CREATE OR REPLACE FUNCTION public.dblink_close(text)
  RETURNS text
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
@@ -3070,14 +3226,21 @@ CREATE OR REPLACE FUNCTION public.dblink_close(text, text, boolean)
 AS '$libdir/dblink', $function$dblink_close$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_connect(text, text)
+CREATE OR REPLACE FUNCTION public.dblink_close(text, text)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_close$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_connect(text)
  RETURNS text
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
 AS '$libdir/dblink', $function$dblink_connect$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_connect(text)
+CREATE OR REPLACE FUNCTION public.dblink_connect(text, text)
  RETURNS text
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
@@ -3105,14 +3268,14 @@ CREATE OR REPLACE FUNCTION public.dblink_current_query()
 AS '$libdir/dblink', $function$dblink_current_query$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_disconnect(text)
+CREATE OR REPLACE FUNCTION public.dblink_disconnect()
  RETURNS text
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
 AS '$libdir/dblink', $function$dblink_disconnect$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_disconnect()
+CREATE OR REPLACE FUNCTION public.dblink_disconnect(text)
  RETURNS text
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
@@ -3133,7 +3296,7 @@ CREATE OR REPLACE FUNCTION public.dblink_exec(text, text, boolean)
 AS '$libdir/dblink', $function$dblink_exec$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_exec(text)
+CREATE OR REPLACE FUNCTION public.dblink_exec(text, boolean)
  RETURNS text
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
@@ -3147,7 +3310,7 @@ CREATE OR REPLACE FUNCTION public.dblink_exec(text, text)
 AS '$libdir/dblink', $function$dblink_exec$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_exec(text, boolean)
+CREATE OR REPLACE FUNCTION public.dblink_exec(text)
  RETURNS text
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
@@ -3161,13 +3324,6 @@ CREATE OR REPLACE FUNCTION public.dblink_fdw_validator(options text[], catalog o
 AS '$libdir/dblink', $function$dblink_fdw_validator$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_fetch(text, text, integer, boolean)
- RETURNS SETOF record
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_fetch$function$
-;
-
 CREATE OR REPLACE FUNCTION public.dblink_fetch(text, integer)
  RETURNS SETOF record
  LANGUAGE c
@@ -3176,6 +3332,13 @@ AS '$libdir/dblink', $function$dblink_fetch$function$
 ;
 
 CREATE OR REPLACE FUNCTION public.dblink_fetch(text, integer, boolean)
+ RETURNS SETOF record
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_fetch$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_fetch(text, text, integer, boolean)
  RETURNS SETOF record
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
@@ -3196,14 +3359,14 @@ CREATE OR REPLACE FUNCTION public.dblink_get_connections()
 AS '$libdir/dblink', $function$dblink_get_connections$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_get_notify(OUT notify_name text, OUT be_pid integer, OUT extra text)
+CREATE OR REPLACE FUNCTION public.dblink_get_notify(conname text, OUT notify_name text, OUT be_pid integer, OUT extra text)
  RETURNS SETOF record
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
 AS '$libdir/dblink', $function$dblink_get_notify$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_get_notify(conname text, OUT notify_name text, OUT be_pid integer, OUT extra text)
+CREATE OR REPLACE FUNCTION public.dblink_get_notify(OUT notify_name text, OUT be_pid integer, OUT extra text)
  RETURNS SETOF record
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
@@ -3238,14 +3401,14 @@ CREATE OR REPLACE FUNCTION public.dblink_is_busy(text)
 AS '$libdir/dblink', $function$dblink_is_busy$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_open(text, text)
+CREATE OR REPLACE FUNCTION public.dblink_open(text, text, boolean)
  RETURNS text
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
 AS '$libdir/dblink', $function$dblink_open$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_open(text, text, boolean)
+CREATE OR REPLACE FUNCTION public.dblink_open(text, text)
  RETURNS text
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
@@ -3505,9 +3668,9 @@ from
  (select u.id, u.nome,
  translate((lower(left(u.nome,((strpos(u.nome, ' '))-1)))), '·‡‚„‰Âaaa¡¬√ƒ≈AAA¿ÈËÍÎeeeeeEEE…EE»ÏÌÓÔÏiiiÃÕŒœÃIIIÛÙıˆoooÚ“”‘’÷OOO˘˙˚¸uuuuŸ⁄€‹UUUUÁ«Ò—˝›',
 'aaaaaaaaaAAAAAAAAAeeeeeeeeeEEEEEEEiiiiiiiiIIIIIIIIooooooooOOOOOOOOuuuuuuuuUUUUUUUUcCnNyY'),
- u.codigoind, substring(u.codigoind FROM '[0-9]+') from usuario u
+ u.codigoind, substring(u.codigoind FROM '[0-9]+') from afarma.usuario u
  where u.perfilid='2'
- order by id asc) i) cod, usuario u where u.id=cod.identificador and (u.codigoind isnull or u.codigoind='' or u.codigoind=null)) ci 
+ order by id asc) i) cod, afarma.usuario u where u.id=cod.identificador and (u.codigoind isnull or u.codigoind='' or u.codigoind=null)) ci 
 WHERE
     id = ci.identificador;
 
@@ -3624,9 +3787,3 @@ CREATE OR REPLACE FUNCTION public.word_similarity_op(text, text)
  STABLE PARALLEL SAFE STRICT
 AS '$libdir/pg_trgm', $function$word_similarity_op$function$
 ;
-
-
-
-
-
-
