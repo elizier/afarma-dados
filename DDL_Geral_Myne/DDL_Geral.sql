@@ -12,6 +12,64 @@ CREATE AGGREGATE tsvector_agg(tsvector) (
    INITCOND = ''
 );
 
+-- DROP TYPE feedresult;
+
+CREATE TYPE feedresult AS (
+	id varchar,
+	createdate timestamp,
+	description varchar,
+	title varchar);
+
+-- DROP TYPE gtrgm;
+
+CREATE TYPE gtrgm (
+	INPUT = gtrgm_in,
+	OUTPUT = gtrgm_out,
+	ALIGNMENT = 4,
+	STORAGE = plain,
+	CATEGORY = U,
+	DELIMITER = ',');
+
+-- DROP TYPE jsonresult;
+
+CREATE TYPE jsonresult AS (
+	id varchar,
+	"data" json);
+
+-- DROP TYPE jsonresultowner;
+
+CREATE TYPE jsonresultowner AS (
+	"owner" varchar,
+	"type" varchar,
+	id varchar,
+	"data" json);
+
+-- DROP TYPE mynejsontype;
+
+CREATE TYPE mynejsontype AS (
+	id varchar,
+	"type" varchar,
+	"data" json);
+
+-- DROP TYPE slugresult;
+
+CREATE TYPE slugresult AS (
+	id varchar,
+	slug text);
+
+-- DROP TYPE _gtrgm;
+
+CREATE TYPE _gtrgm (
+	INPUT = array_in,
+	OUTPUT = array_out,
+	RECEIVE = array_recv,
+	SEND = array_send,
+	ANALYZE = array_typanalyze,
+	ALIGNMENT = 4,
+	STORAGE = any,
+	CATEGORY = A,
+	ELEMENT = gtrgm,
+	DELIMITER = ',');
 
 -- DROP TYPE gtrgm;
 
