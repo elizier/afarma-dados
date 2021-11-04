@@ -7,6 +7,7 @@ CREATE TABLE public.product (
 	description varchar(255) NULL,
 	type varchar(255) not NULL,
 	active boolean not null default true,
+	details varchar(10240) NULL,
 	CONSTRAINT myne_product_pkey PRIMARY KEY (id)
 );
 
@@ -20,11 +21,7 @@ CREATE TABLE public.price (
 	CONSTRAINT price_pkey PRIMARY KEY (id)
 );
 
-CREATE TABLE public.product_purchase (
-	launch_id varchar(36)  NULL,
-	product_id varchar(36) null,
-	user_id varchar(36) not NULL
-);
+
 
 CREATE TABLE public.launch (
 	id varchar(36) NOT null default uuid_generate_v4(),
@@ -32,9 +29,17 @@ CREATE TABLE public.launch (
 	releasedate timestamp NULL DEFAULT now(),
 	name varchar(255) not NULL,
 	description varchar(255) NULL,
-	type varchar(255) not NULL,
+	launchtype varchar(255) not NULL,
 	CONSTRAINT release_pkey PRIMARY KEY (id)
 );
+
+
+CREATE TABLE public.purchase (
+	launch_id varchar(36)  NULL, 
+	product_id varchar(36) NULL, 
+	user_id varchar(36) not NULL 
+);
+
 
 
 CREATE TABLE public.launch_workflow (
