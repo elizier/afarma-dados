@@ -71,3 +71,14 @@ create trigger insertproducttag after
 insert
     on
     public.product for each row execute function taguserinsert()
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+select findresourcedata('6a49706d-9be8-44bc-95a7-d8994150dc9b')
