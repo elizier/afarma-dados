@@ -2,6 +2,7 @@
 
 CREATE SCHEMA public AUTHORIZATION postgres;
 
+COMMENT ON SCHEMA public IS 'standard public schema';
 
 
 -- Agregate tsvector
@@ -11,65 +12,6 @@ CREATE AGGREGATE tsvector_agg(tsvector) (
    SFUNC = pg_catalog.tsvector_concat,
    INITCOND = ''
 );
-
--- DROP TYPE feedresult;
-
-CREATE TYPE feedresult AS (
-	id varchar,
-	createdate timestamp,
-	description varchar,
-	title varchar);
-
--- DROP TYPE gtrgm;
-
-CREATE TYPE gtrgm (
-	INPUT = gtrgm_in,
-	OUTPUT = gtrgm_out,
-	ALIGNMENT = 4,
-	STORAGE = plain,
-	CATEGORY = U,
-	DELIMITER = ',');
-
--- DROP TYPE jsonresult;
-
-CREATE TYPE jsonresult AS (
-	id varchar,
-	"data" json);
-
--- DROP TYPE jsonresultowner;
-
-CREATE TYPE jsonresultowner AS (
-	"owner" varchar,
-	"type" varchar,
-	id varchar,
-	"data" json);
-
--- DROP TYPE mynejsontype;
-
-CREATE TYPE mynejsontype AS (
-	id varchar,
-	"type" varchar,
-	"data" json);
-
--- DROP TYPE slugresult;
-
-CREATE TYPE slugresult AS (
-	id varchar,
-	slug text);
-
--- DROP TYPE _gtrgm;
-
-CREATE TYPE _gtrgm (
-	INPUT = array_in,
-	OUTPUT = array_out,
-	RECEIVE = array_recv,
-	SEND = array_send,
-	ANALYZE = array_typanalyze,
-	ALIGNMENT = 4,
-	STORAGE = any,
-	CATEGORY = A,
-	ELEMENT = gtrgm,
-	DELIMITER = ',');
 
 -- DROP TYPE gtrgm;
 
@@ -497,6 +439,13 @@ CREATE TABLE public.s3file (
 	solicitacaoid varchar(36) NULL,
 	CONSTRAINT s3file_pkey PRIMARY KEY (id)
 );
+
+-- Table Triggers
+
+create trigger update_profile_image after
+insert
+    on
+    public.s3file for each row execute function profile_image_update();
 
 
 -- public.site definition
@@ -1138,71 +1087,35 @@ BEGIN
  	FOR resource_t in
 
 
-select cast(uuid_generate_v4() as varchar) as  id, 'POST' as type, u.data from
-(
-select jsonb_build_object('user', u.user_data) || u.post as data  from 
-(
-select u.user_data, u.post_data || jsonb_build_object('nested', array_agg(u.data))  as post from
-(
-select  jsonb(u.user_data) as user_data, jsonb(u.post_data) as post_data, jsonb_build_object('type', p.type) || jsonb(p.data) as data from
-(SELECT json_build_object('user',u.user ,'profile_image',u.profile_image)  as user_data, jsonb_build_object('type', p.type) || jsonb(p.data) as post_data, cast(p.data ->> 'createdate' AS TIMESTAMP) as createdate_post, cast(p.data ->> 'id' AS varchar) as id_post
+SELECT cast(uuid_generate_v4() AS VARCHAR) AS id
+	,'POST' AS type
+	,jsonb_build_object('user', f.user_data || jsonb_build_object('profile_image', p.data)) || f.post_data AS data
 FROM (
-	select o.post_id, u.id, row_to_json(u.*) AS user
-		,(jsonb_build_object('id', o.s3_id) || jsonb_build_object('createDate', o."createDate") || jsonb_build_object('description', o.description) || jsonb_build_object('fileName', o."fileName") || jsonb_build_object('fileType', o."fileType") || jsonb_build_object('s3url', o.s3url)) AS profile_image
+	SELECT f.user_id
+		,jsonb_build_object('user', f.user_data) AS user_data
+		,f.post_data || jsonb_build_object('nested', array_agg(to_jsonb(p.data) || jsonb_build_object('type', p.type))) AS post_data
 	FROM (
-		SELECT u.id
-			,u.accountname as "accountName"
-			,u.active
-			,u.createdate as "createDate"
-			,u.devicetoken
-			,u.email
-			,u.name
-			,u.slug
-			,u.usertype
-			,u.visibility
-		FROM myneuser u
-		) u
-		,(
-			SELECT max(s.id) AS s3_id
-				,max(s.createdate) AS "createDate"
-				,max(s.description) AS description
-				,max(s.filename)  as "fileName"
-				,max(s.filetype) as "fileType"
-				,max(s.s3url) AS s3url
-				,o.user_id, o.post_id
-			FROM (
-				SELECT pi.user_id
-					,replace(m.mri, 'mri::', '') AS s3_id, pi.post_id
-				FROM (
-					SELECT u.user_id
-						,o.slave AS id, u.post_id
-					FROM (select m.id as mri_id, replace(m.mri, 'mri::', '') as user_id, a.post_id from
-(select a.owner, replace(m.mri, 'mri::', '') as post_id, a.accountability_id from  
-(select o.owner, a.accountability_id from myneresourceinformation m,
-(select a.id as accountability_id from accountability a
-order by "views" desc, id desc
-limit coalesce(itens_by_page, 5)
-offset coalesce(page, 0) * coalesce(itens_by_page, 5)) a, ownerresources o
-where replace(m.mri, 'mri::', '') = a.accountability_id and o.slave = m.id
-and o.type = 'POST_ACCOUNTABILITY') a, myneresourceinformation m
-where a.owner = m.id ) a, ownerresources o,  myneresourceinformation m
-where a.owner = o.slave and o.owner = m.id) u
-					LEFT JOIN ownerresources o ON u.mri_id = o.OWNER
-						AND o.type = 'USER_PROFILE_IMAGE'
-					) pi
-				LEFT JOIN myneresourceinformation m ON pi.id = m.id
-				) o
-			LEFT JOIN s3file s ON o.s3_id = s.id
-			GROUP BY o.user_id, o.post_id
-			) o
-	WHERE o.user_id = u.id
-	) u
-cross join lateral findresourcedata(u.post_id) as p
-) u
-cross join lateral findresourcebyowner(u.id_post) as p) u
-group by u.user_data, u.post_data) u
-) u
-
+		SELECT a.accountability_id
+			,f.OWNER AS user_id
+			,to_jsonb(u.data) AS user_data
+			,jsonb_build_object('type', f.type) || to_jsonb(f.data) AS post_data
+		FROM (
+			SELECT a.id AS accountability_id
+			FROM accountability a
+			ORDER BY "views" DESC
+				,id DESC limit coalesce(itens_by_page, 5) offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+			) a
+		LEFT JOIN lateral findownerdata(a.accountability_id) f ON true
+		LEFT JOIN lateral findresourcedata(f.OWNER) u ON true
+		) f
+	LEFT JOIN lateral findresourcebyowner(cast(f.post_data ->> 'id' AS VARCHAR)) p ON true
+	WHERE f.user_id notnull
+		AND f.user_id != 'DON''T HAVE'
+	GROUP BY f.user_id
+		,f.post_data
+		,f.user_data
+	) f
+LEFT JOIN lateral findresourcebyownerandtype(f.user_id, 'PROFILE_IMAGE') p ON true
 	
 	loop
 		RETURN NEXT resource_t;
@@ -1675,7 +1588,7 @@ mri_id := replace(resource,'mri::','');
    where RIGHT(m.mri,36) = mri_id limit 1) as type,  uuid_generate_v4() as id, r.* from 
 (select
 (case when (mri_type) = 'USER'
-   then (select row_to_json(u) from (select u.id, u.accountname as "accountName", u.active, u.createdate, u.devicetoken, u.email, u.name, u.slug, u.usertype, u.visibility from public.myneuser u where u.id= mri_id) u)
+   then (select row_to_json(u) from (select u.id, u.accountname as "accountName", u.active, u.createdate as "createDate", u.devicetoken, u.email, u.name, u.slug, u.usertype as "userType", u.visibility from public.myneuser u where u.id= mri_id) u)
    when (mri_type) = 'POST'
     then (select row_to_json(p) from (select p.id, p.createdate as "createDate", p.description, p.title, p.cancomment as "canComment" from public.post p where p.id= mri_id order by p.createdate desc) p)
      when (mri_type) = 'SITE'
@@ -2725,6 +2638,52 @@ loop
   
   	
    RETURN;
+
+END;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.profile_image_update()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+
+BEGIN
+
+delete from s3file where id in
+(select b.s3_id from 
+(
+select m.id as id_f, min(cast(f.data ->> 'createDate' AS timestamp)) as "date_f" from myneuser m
+left join lateral findresourcebyownerandtype(m.id, 'PROFILE_IMAGE') as f on true
+where f.data notnull
+group by m.id
+having count(m.id)>1
+) a,
+(
+select m.id, cast(f.data ->> 'id' AS VARCHAR) as s3_id, cast(f.data ->> 'createDate' AS timestamp) as "date" from myneuser m
+left join lateral findresourcebyownerandtype(m.id, 'PROFILE_IMAGE') as f on true
+where f.data notnull
+) b
+where a.id_f = b.id and a.date_f = b.date);
+
+delete from ownerresources where slave in
+(select m.id from myneresourceinformation m,
+(select replace(m.mri, 'mri::', '') as id from myneresourceinformation m where m."type" = 'PROFILE_IMAGE'
+except
+select s.id from s3file s) s
+where s.id = replace(m.mri, 'mri::', ''));
+
+delete from myneresourceinformation where id in
+(select m.id from myneresourceinformation m,
+(select replace(m.mri, 'mri::', '') as id from myneresourceinformation m where m."type" = 'PROFILE_IMAGE'
+except
+select s.id from s3file s) s
+where s.id = replace(m.mri, 'mri::', ''));
+
+
+
+RETURN NEW;
 
 END;
 
