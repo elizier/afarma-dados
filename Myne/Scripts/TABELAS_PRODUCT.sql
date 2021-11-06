@@ -16,7 +16,6 @@ CREATE TABLE public.price (
 	id varchar(36) NOT null default uuid_generate_v4(),
 	price float(8) NOT NULL,
 	discount float(8) NULL,
-	product_id varchar(36) not NULL,
 	active boolean not null default true,
 	CONSTRAINT price_pkey PRIMARY KEY (id)
 );
@@ -34,11 +33,23 @@ CREATE TABLE public.launch (
 );
 
 
+
 CREATE TABLE public.purchase (
-	launch_id varchar(36)  NULL, 
-	product_id varchar(36) NULL, 
-	user_id varchar(36) not NULL 
+	launch_id varchar(36) NULL,
+	product_id varchar(36) NULL,
+	user_id varchar(36) NOT NULL,
+	id varchar NOT NULL DEFAULT uuid_generate_v4(),
+	createdate timestamptz NOT NULL DEFAULT now(),
+	CONSTRAINT purchase_pk PRIMARY KEY (id),
+	CONSTRAINT purchase_fk FOREIGN KEY (user_id) REFERENCES public.myneuser(id)
 );
+
+
+CREATE TABLE public.counterpart (
+	id varchar(36) NOT null,
+	TYPE varchar(10240) null,
+	description varchar(10240) null
+	);
 
 
 
