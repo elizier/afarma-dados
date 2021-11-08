@@ -193,3 +193,18 @@ FROM (
 		,m.type
 	) a
 	) a
+	
+	
+	
+	
+	
+	
+	
+CREATE INDEX owner_resource_index ON public.ownerresources ("owner", slave);
+
+
+
+
+CREATE unique INDEX resource_index ON public.myneresourceinformation (id, mri);
+
+DROP INDEX resource_index;
