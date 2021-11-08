@@ -4,15 +4,6 @@ CREATE SCHEMA public AUTHORIZATION postgres;
 
 COMMENT ON SCHEMA public IS 'standard public schema';
 
-
--- Agregate tsvector
-
-CREATE AGGREGATE tsvector_agg(tsvector) (
-   STYPE = pg_catalog.tsvector,
-   SFUNC = pg_catalog.tsvector_concat,
-   INITCOND = ''
-);
-
 -- DROP TYPE gtrgm;
 
 CREATE TYPE gtrgm (
@@ -108,6 +99,20 @@ CREATE TABLE public.config (
 	mobile bool NOT NULL,
 	valor varchar(255) NULL,
 	CONSTRAINT config_pkey PRIMARY KEY (id)
+);
+
+
+-- public.counterpart definition
+
+-- Drop table
+
+-- DROP TABLE public.counterpart;
+
+CREATE TABLE public.counterpart (
+	id varchar(36) NOT NULL,
+	description varchar(10240) NULL,
+	"name" varchar(10240) NULL,
+	CONSTRAINT counterpart_pkey PRIMARY KEY (id)
 );
 
 
@@ -219,6 +224,22 @@ CREATE TABLE public."like" (
 	createdate timestamp NOT NULL DEFAULT now(),
 	"type" varchar(255) NULL,
 	CONSTRAINT like_pkey PRIMARY KEY (id)
+);
+
+
+-- public."module" definition
+
+-- Drop table
+
+-- DROP TABLE public."module";
+
+CREATE TABLE public."module" (
+	id varchar(36) NOT NULL,
+	active bool NOT NULL,
+	createdate timestamp NULL,
+	description varchar(255) NULL,
+	details varchar(255) NULL,
+	CONSTRAINT module_pkey PRIMARY KEY (id)
 );
 
 
@@ -360,10 +381,10 @@ CREATE TABLE public.product (
 	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
 	active bool NOT NULL DEFAULT true,
 	createdate timestamp NOT NULL DEFAULT now(),
-	description varchar(255) NULL,
+	description varchar(10240) NULL,
 	"name" varchar(255) NULL,
 	producttype varchar(255) NULL,
-	details varchar(255) NULL,
+	details varchar(10240) NULL,
 	CONSTRAINT product_pkey PRIMARY KEY (id)
 );
 
@@ -437,6 +458,7 @@ CREATE TABLE public.s3file (
 	filetype varchar(30) NULL,
 	s3url varchar(10240) NULL,
 	solicitacaoid varchar(36) NULL,
+	order_ int4 NULL,
 	CONSTRAINT s3file_pkey PRIMARY KEY (id)
 );
 
@@ -584,6 +606,24 @@ CREATE TABLE public.post (
 );
 
 
+-- public.purchase definition
+
+-- Drop table
+
+-- DROP TABLE public.purchase;
+
+CREATE TABLE public.purchase (
+	launch_id varchar(36) NULL,
+	product_id varchar(36) NULL,
+	id varchar NOT NULL DEFAULT uuid_generate_v4(),
+	createdate timestamptz NOT NULL DEFAULT now(),
+	value float4 NOT NULL DEFAULT 0,
+	CONSTRAINT purchase_pk PRIMARY KEY (id),
+	CONSTRAINT fk93t8gvf0r076j4uejkb0injck FOREIGN KEY (product_id) REFERENCES public.product(id),
+	CONSTRAINT fku0ma9y7k5mhbb5bx7tms4u3m FOREIGN KEY (launch_id) REFERENCES public.launch(id)
+);
+
+
 -- public.relationrequest definition
 
 -- Drop table
@@ -655,6 +695,7 @@ CREATE TABLE public.myneresourceinformation (
 	CONSTRAINT fknk23pifl0ru91hn57oqljajnm FOREIGN KEY (owner_id) REFERENCES public.myneresourceinformation(id),
 	CONSTRAINT fkso12pi6ebo8rcjv3e9pi3ybnd FOREIGN KEY (post) REFERENCES public.post(id)
 );
+CREATE UNIQUE INDEX resource_index ON public.myneresourceinformation USING btree (id, mri);
 
 
 -- public.ownerresources definition
@@ -672,6 +713,7 @@ CREATE TABLE public.ownerresources (
 	CONSTRAINT fk2pdgglupfwvs49i8e3w5ovfkb FOREIGN KEY (slave) REFERENCES public.myneresourceinformation(id),
 	CONSTRAINT fkoxoer1503fnjf9g63kcm9bujx FOREIGN KEY ("owner") REFERENCES public.myneresourceinformation(id)
 );
+CREATE INDEX owner_resource_index ON public.ownerresources USING btree (owner, slave);
 
 
 -- public.resourcetag definition
@@ -1379,7 +1421,7 @@ FROM (
 			LEFT JOIN lateral findresourcebyowner(cast(f.data ->> 'id' AS VARCHAR)) AS s ON true
 			LEFT JOIN lateral findresourcedata(user_id) AS u ON true
 			WHERE f.type = 'PRODUCT'
-				AND cast(f.data ->> 'productType' AS VARCHAR) = coalesce(type_, cast(f.data ->> 'productType' AS VARCHAR))
+				AND cast(f.data ->> 'productType' AS VARCHAR) = coalesce(nullif(type_,'NULO'), cast(f.data ->> 'productType' AS VARCHAR))
 			) p
 		GROUP BY p.user
 			,p.product_data
@@ -2342,32 +2384,6 @@ END;
 $function$
 ;
 
-CREATE OR REPLACE FUNCTION public.myneresearch(research character varying, user_id character varying)
- RETURNS SETOF mynejsontype
- LANGUAGE plpgsql
-AS $function$
-   DECLARE
-      resource_t public.mynejsontype%ROWTYPE;
-BEGIN
-
- 	FOR resource_t in
-
- select uuid_generate_v4() as id, 'POST' as type, to_json(research)  as data
-
- 
-loop
-		RETURN NEXT resource_t;
-	
-   END LOOP;
-  
-  	
-   RETURN;
-
-END;
-
-$function$
-;
-
 CREATE OR REPLACE FUNCTION public.myneresearch(research character varying, research_type character varying, itens_by_page integer, page integer)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
@@ -2564,6 +2580,32 @@ END;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.myneresearch(research character varying, user_id character varying)
+ RETURNS SETOF mynejsontype
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.mynejsontype%ROWTYPE;
+BEGIN
+
+ 	FOR resource_t in
+
+ select uuid_generate_v4() as id, 'POST' as type, to_json(research)  as data
+
+ 
+loop
+		RETURN NEXT resource_t;
+	
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.myneresearchfeed(itens_by_page integer, page integer)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
@@ -2641,6 +2683,25 @@ loop
 
 END;
 
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.password_recovery(user_email character varying)
+ RETURNS character varying
+ LANGUAGE plpgsql
+AS $function$
+declare
+   password_key varchar;
+begin
+	
+
+
+SELECT (case when u.password = 'PROVIDED BY OAUTH' then 'Your password could not be recovered.' else u.password end)
+FROM myneuser u WHERE u.email = user_email
+into password_key;
+
+   return password_key;
+end;
 $function$
 ;
 
@@ -3280,14 +3341,14 @@ end;
 $function$
 ;
 
-CREATE OR REPLACE FUNCTION public.unaccent(regdictionary, text)
+CREATE OR REPLACE FUNCTION public.unaccent(text)
  RETURNS text
  LANGUAGE c
  STABLE PARALLEL SAFE STRICT
 AS '$libdir/unaccent', $function$unaccent_dict$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.unaccent(text)
+CREATE OR REPLACE FUNCTION public.unaccent(regdictionary, text)
  RETURNS text
  LANGUAGE c
  STABLE PARALLEL SAFE STRICT
@@ -3356,6 +3417,10 @@ select o.id, slugify(o.name) as name,  ROW_NUMBER() OVER(ORDER BY o.id) AS RowNu
 from public.myneuser o  where o.slug isnull
 ) o) o
 where o.id1=id;
+
+update myneuser set accountname = translate(slug,'-','') from
+(select id as id1 from myneuser where accountname isnull) a
+where a.id1=id;
 
 
 
