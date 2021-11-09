@@ -40,8 +40,8 @@ CREATE TABLE public.counterpart (
 USER_PURCHASE
 
 
-CREATE  INDEX owner_resource_index ON public.ownerresources using hash("owner");
-create index resource_index on public.myneresourceinformation using hash(mri);
+CREATE INDEX owner_resource_index ON public.ownerresources ("owner", slave);
+create unique index resource_index on public.myneresourceinformation (id, mri);
 CREATE unique INDEX resource_index ON public.ownerresources (id, mri);
 
 
@@ -79,7 +79,7 @@ FROM (
 LEFT JOIN lateral findresourcebyownerandtype(f.user_id, 'PROFILE_IMAGE') p ON true);
 
 
-DROP INDEX public.owner_resource_index;
+DROP INDEX public.resource_index;
 
 
 
