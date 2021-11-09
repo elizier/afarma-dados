@@ -196,7 +196,7 @@ FROM (
 	
 	
 	
-	
+update myneuser set "method" = upper("method")
 	
 	
 	
@@ -208,3 +208,12 @@ CREATE INDEX owner_resource_index ON public.ownerresources ("owner", slave);
 CREATE unique INDEX resource_index ON public.myneresourceinformation (id, mri);
 
 DROP INDEX resource_index;
+
+
+-- Agregate tsvector
+
+CREATE AGGREGATE tsvector_agg(tsvector) (
+   STYPE = pg_catalog.tsvector,
+   SFUNC = pg_catalog.tsvector_concat,
+   INITCOND = ''
+);
