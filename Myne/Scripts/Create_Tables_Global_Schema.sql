@@ -28,10 +28,12 @@ left join findresourcedata(p.id) as pr on true
 
 55f59dc6-9158-437b-ac40-981d30ca3b3f
 
-select ud.type, ud.data, sd.type, sd.data--, pf.type,  pf.data 
+
+
+(select row_to_json(ud.*) as user_data, u.slave_type, p.id as post_id, row_to_json(p.*) as post_data , o.slave
 from
-(select u.user_id, m.type as slave_type, replace(m.mri, 'mri::','') as user_slaves from
-(select u.id as user_id, o.slave as mri_id_slave, o.id as or_id, o.type, m.createdate from
+(select u.id_usuario_no_mri, u.user_id, m.type as slave_type, replace(m.mri, 'mri::','') as user_slaves from
+(select m.id as id_usuario_no_mri, u.id as user_id, o.slave as mri_id_slave, m.createdate from
 (select distinct(r.to_id) as id from relationrequest r 
 where r.status = 'ACCEPTED' and
 (r.type = 'FOLLOWER' or r.type = 'PUPIL' or r.type = 'PARTNER')
@@ -44,9 +46,11 @@ limit coalesce(:itens_by_page, 5)
 offset coalesce(:page, 0) * coalesce(:itens_by_page, 5)
 ) u
 left join myneresourceinformation m on u.mri_id_slave = m.id) u
-left join lateral findresourcedata(u.user_id) as ud on true
-left join lateral findresourcedata(u.user_slaves) as sd on true
-left join lateral findresourcebyownerandtype(u.user_id, 'PROFILE_IMAGE') as pf on true
+left join myneuser ud on ud.id = u.user_id
+left join post p on u.user_slaves = p.id 
+left join ownerresources o on o."owner" = u.id_usuario_no_mri
+where o."type" = 'USER_PROFILE_IMAGE') u
+left join 
 
 
 
