@@ -87,6 +87,20 @@ CREATE TABLE public.config (
 );
 
 
+-- public.counterpart definition
+
+-- Drop table
+
+-- DROP TABLE public.counterpart;
+
+CREATE TABLE public.counterpart (
+	id varchar(36) NOT NULL,
+	description varchar(10240) NULL,
+	"name" varchar(10240) NULL,
+	CONSTRAINT counterpart_pkey PRIMARY KEY (id)
+);
+
+
 -- public.financialinfo definition
 
 -- Drop table
@@ -145,9 +159,10 @@ CREATE TABLE public.identificationdocument (
 CREATE TABLE public.insight (
 	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
 	active bool NOT NULL DEFAULT true,
-	createdate timestamp NOT NULL DEFAULT now(),
+	createdate timestamptz NOT NULL DEFAULT now(),
 	insighttype varchar(255) NULL,
 	url varchar(255) NULL,
+	releasedate timestamptz NOT NULL DEFAULT now(),
 	CONSTRAINT insight_pkey PRIMARY KEY (id)
 );
 
@@ -195,6 +210,23 @@ CREATE TABLE public."like" (
 	createdate timestamp NOT NULL DEFAULT now(),
 	"type" varchar(255) NULL,
 	CONSTRAINT like_pkey PRIMARY KEY (id)
+);
+
+
+-- public."module" definition
+
+-- Drop table
+
+-- DROP TABLE public."module";
+
+CREATE TABLE public."module" (
+	id varchar(36) NOT NULL,
+	active bool NOT NULL DEFAULT true,
+	createdate timestamp NULL DEFAULT now(),
+	description varchar(255) NULL,
+	details varchar(255) NULL,
+	"name" varchar(255) NOT NULL,
+	CONSTRAINT module_pkey PRIMARY KEY (id)
 );
 
 
@@ -251,7 +283,16 @@ CREATE TABLE public.myneuser (
 	CONSTRAINT uk_78xrwtd24kvmcjhsc006sjivr UNIQUE (slug)
 );
 
+-- Table Triggers
 
+create trigger updateslug after
+insert
+    on
+    public.myneuser for each row execute function user_slug();
+create trigger insertusertag after
+insert
+    on
+    public.myneuser for each row execute function taguserinsert();
 
 
 -- public.payment definition
@@ -306,8 +347,16 @@ CREATE TABLE public.price (
 	active bool NOT NULL,
 	discount float8 NOT NULL,
 	price float8 NOT NULL,
+	createdate varchar NOT NULL DEFAULT now(),
 	CONSTRAINT price_pkey PRIMARY KEY (id)
 );
+
+-- Table Triggers
+
+create trigger insertproducttag after
+insert
+    on
+    public.price for each row execute function tagproductinsert();
 
 
 -- public.product definition
@@ -319,11 +368,12 @@ CREATE TABLE public.price (
 CREATE TABLE public.product (
 	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
 	active bool NOT NULL DEFAULT true,
-	createdate timestamp NOT NULL DEFAULT now(),
-	description varchar(255) NULL,
+	createdate timestamptz NOT NULL DEFAULT now(),
+	description varchar(10240) NULL,
 	"name" varchar(255) NULL,
 	producttype varchar(255) NULL,
-	details varchar(255) NULL,
+	details varchar(10240) NULL,
+	releasedate timestamptz NOT NULL DEFAULT now(),
 	CONSTRAINT product_pkey PRIMARY KEY (id)
 );
 
@@ -397,8 +447,16 @@ CREATE TABLE public.s3file (
 	filetype varchar(30) NULL,
 	s3url varchar(10240) NULL,
 	solicitacaoid varchar(36) NULL,
+	order_ int4 NULL,
 	CONSTRAINT s3file_pkey PRIMARY KEY (id)
 );
+
+-- Table Triggers
+
+create trigger update_profile_image after
+insert
+    on
+    public.s3file for each row execute function profile_image_update();
 
 
 -- public.site definition
@@ -513,6 +571,7 @@ CREATE TABLE public.messagenotification (
 	title varchar(255) NULL,
 	receiverid varchar(36) NOT NULL,
 	senderid varchar(36) NOT NULL,
+	link varchar(10240) NULL,
 	CONSTRAINT messagenotification_pkey PRIMARY KEY (id),
 	CONSTRAINT fk5liknp4huj0bry2tbf81v47k1 FOREIGN KEY (senderid) REFERENCES public.myneuser(id),
 	CONSTRAINT fkbujicj06wbwl43xkwraffia2j FOREIGN KEY (receiverid) REFERENCES public.myneuser(id)
@@ -527,13 +586,41 @@ CREATE TABLE public.messagenotification (
 
 CREATE TABLE public.post (
 	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
-	createdate timestamp NOT NULL DEFAULT now(),
+	createdate timestamptz NOT NULL DEFAULT now(),
 	description varchar(10240) NULL DEFAULT 'Myne Post DESC'::character varying,
 	title varchar(255) NULL DEFAULT 'Myne Post TITLE'::character varying,
 	owner_id varchar(36) NULL,
 	cancomment bool NOT NULL DEFAULT true,
+	releasedate timestamptz NOT NULL DEFAULT now(),
 	CONSTRAINT post_pkey PRIMARY KEY (id),
 	CONSTRAINT fksmimo05ej6b8u91r6omk3n85g FOREIGN KEY (owner_id) REFERENCES public.myneuser(id)
+);
+
+-- Table Triggers
+
+create trigger global_feed_refresh_mat_view after
+insert
+    or
+update
+    on
+    public.post for each statement execute function refresh_mat_view_global_feed();
+
+
+-- public.purchase definition
+
+-- Drop table
+
+-- DROP TABLE public.purchase;
+
+CREATE TABLE public.purchase (
+	launch_id varchar(36) NULL,
+	product_id varchar(36) NULL,
+	id varchar NOT NULL DEFAULT uuid_generate_v4(),
+	createdate timestamptz NOT NULL DEFAULT now(),
+	value float4 NOT NULL DEFAULT 0,
+	CONSTRAINT purchase_pk PRIMARY KEY (id),
+	CONSTRAINT fk93t8gvf0r076j4uejkb0injck FOREIGN KEY (product_id) REFERENCES public.product(id),
+	CONSTRAINT fku0ma9y7k5mhbb5bx7tms4u3m FOREIGN KEY (launch_id) REFERENCES public.launch(id)
 );
 
 
@@ -574,6 +661,13 @@ CREATE TABLE public.userrelation (
 	CONSTRAINT fkbt9fywtkux1b7qs1ync0nqy9 FOREIGN KEY (to_id) REFERENCES public.myneuser(id)
 );
 
+-- Table Triggers
+
+create trigger ajustuserrelation after
+insert
+    on
+    public.userrelation for each row execute function userrelationajust();
+
 
 -- public.myneresourceinformation definition
 
@@ -601,6 +695,7 @@ CREATE TABLE public.myneresourceinformation (
 	CONSTRAINT fknk23pifl0ru91hn57oqljajnm FOREIGN KEY (owner_id) REFERENCES public.myneresourceinformation(id),
 	CONSTRAINT fkso12pi6ebo8rcjv3e9pi3ybnd FOREIGN KEY (post) REFERENCES public.post(id)
 );
+CREATE UNIQUE INDEX resource_index ON public.myneresourceinformation USING btree (id, mri);
 
 
 -- public.ownerresources definition
@@ -618,6 +713,7 @@ CREATE TABLE public.ownerresources (
 	CONSTRAINT fk2pdgglupfwvs49i8e3w5ovfkb FOREIGN KEY (slave) REFERENCES public.myneresourceinformation(id),
 	CONSTRAINT fkoxoer1503fnjf9g63kcm9bujx FOREIGN KEY ("owner") REFERENCES public.myneresourceinformation(id)
 );
+CREATE INDEX owner_resource_index ON public.ownerresources USING btree (owner, slave);
 
 
 -- public.resourcetag definition
@@ -652,6 +748,15 @@ CREATE TABLE public.accountability (
 	CONSTRAINT fk7gia2cy80rv51jxoxsibu7hsf FOREIGN KEY (owner_id) REFERENCES public.myneresourceinformation(id)
 );
 
+-- Table Triggers
+
+create trigger updateview after
+insert
+    or
+update
+    on
+    public.accountability for each row execute function update_views();
+
 
 -- public."comment" definition
 
@@ -671,39 +776,3 @@ CREATE TABLE public."comment" (
 	CONSTRAINT fk4m11y2dem5m00480fejdlb8t7 FOREIGN KEY (postowner_id) REFERENCES public.ownerresources(id),
 	CONSTRAINT fkbqaxmjh45xx9x2f41do2hqi84 FOREIGN KEY (owner_id) REFERENCES public.myneresourceinformation(id)
 );
-
-
-
--- Table Triggers
-
-create trigger ajustuserrelation after
-insert
-    on
-    public.userrelation for each row execute function userrelationajust();
-
--- Table Triggers
-
-create trigger updateslug after
-insert
-    on
-    public.myneuser for each row execute function user_slug();
-create trigger insertusertag after
-insert
-    on
-    public.myneuser for each row execute function taguserinsert();
-    
--- Table Triggers
-
-create trigger insertproducttag after
-insert
-    on
-    public.price for each row execute function tagproductinsert();
-    
--- Table Triggers
-
-create trigger updateview after
-insert
-    or
-update
-    on
-    public.accountability for each row execute function update_views();
