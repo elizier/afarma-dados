@@ -444,5 +444,5 @@ end;
 $function$
 ;
 
-
-
+update global.research set ts_vector = 'USER' where "type" isnull
+select  * from global.research r 
