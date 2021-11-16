@@ -807,7 +807,380 @@ where m.type = 'USER' ;
 
 
 
+select * from global.research 
+limit 5
 
+insert into "global".research(id, createdate, type, tag, ts_vector, releasedate, owner, research_data)
+select u.id, u.createdate, u.type, u.tag, u.ts_vector, u.releasedate, u.owner, u.data
+from
+(select cast(r.data ->> 'id' as varchar) as id,  cast(r.data ->> 'createDate' as timestamp with time zone) as createdate,
+'PRODUCT' as "type", concat(cast(r.data ->> 'name' as varchar), ' ', cast(r.data ->> 'productType' as varchar)) as tag,
+to_tsvector(concat(cast(r.data ->> 'name' as varchar), ' ', cast(r.data ->> 'productType' as varchar))) as ts_vector,
+cast(r.data ->> 'releaseDate' as timestamp with time zone) as releasedate, f.owner,
+to_json( r.data) as data from 
+(select jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
+from
+(select r.owner,  array_agg(ro.data), r.data_post, r.data as data_slave from
+(select r.owner, r.data_post, jsonb_build_object('nested', array_agg(r.data_slave)) as data from
+(select rd.owner, jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
+jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave from
+(select replace(m.mri, 'mri::', '') as resource_id from myneresourceinformation m where m.type = 'PRODUCT'
+and replace(m.mri, 'mri::', '') not in ('58df74af-f105-489b-9ae0-3479c909ed80')
+except
+select r.id from global.research r where r.type = 'PRODUCT') m
+cross join lateral findresourcedata(m.resource_id) as rd
+cross join lateral findresourcebyowner(m.resource_id) as ro) r 
+group by r.owner, r.data_post) r
+left join lateral findresourcebyowner(r.owner) ro on true
+where ro.type = 'PROFILE_IMAGE' or ro.type isnull
+group by r.owner, r.data_post, r.data) r 
+cross join lateral findresourcedata(r.owner) as ro) r
+left join findresourcedata(cast(r.data ->> 'id' as varchar)) as f on true
+left join myneresourceinformation m on f.owner = replace(m.mri, 'mri::', '')
+where m.type = 'USER' ) u
+
+union all
+
+insert into "global".research(id, createdate, type, tag, ts_vector, releasedate, owner, research_data)
+select u.id, u.createdate, u.type, u.tag, u.ts_vector, u.releasedate, u.owner, u.data
+from
+(select cast(r.data ->> 'id' as varchar) as id,  cast(r.data ->> 'createDate' as timestamp with time zone) as createdate,
+ cast('USER' as varchar) as type, concat(cast(r.data ->> 'name' as varchar), ' ', cast(r.data ->> 'accountName' as varchar)) as tag,
+to_tsvector(concat(cast(r.data ->> 'name' as varchar), ' ', cast(r.data ->> 'accountName' as varchar))) as ts_vector,
+now() as releasedate, '' as owner,
+to_json(r.data) as data from
+(select jsonb_build_object('type', rd.type) || jsonb(rd.data)|| jsonb_build_object('profile_image', ro.data) as data from
+(select replace(m.mri, 'mri::', '') as resource_id from myneresourceinformation m where m.type = 'USER'
+and replace(m.mri, 'mri::', '') not in 
+('6d5cb104-36a0-4f50-b8fb-0d8b905a78b3',
+'c74f1e72-e674-4f44-ba37-d625c8d49e0f',
+'7c875a39-66fd-434f-ac8c-6fe0c32669f7',
+'7a217f2b-7fcd-46b0-91e7-aa88c4b36f1c',
+'daf0efb2-c29a-4b10-a756-87343477f5bf')
+except
+select r.id from global.research r where r.type = 'USER') m
+cross join lateral findresourcedata(m.resource_id) as rd
+LEFT   JOIN LATERAL findresourcebyowner(m.resource_id) ro ON true
+where ro.type isnull or ro.type = 'PROFILE_IMAGE') r ) u
+
+union all
+
+
+
+select cast(r.data ->> 'id' as varchar) as id,  cast(r.data ->> 'createDate' as timestamp with time zone) as createdate,
+cast('POST' as varchar) as type, concat(cast(r.data ->> 'title' as varchar)) as tag,
+to_tsvector(cast(r.data ->> 'title' as varchar)) as ts_vector, cast(r.data ->> 'releaseDate' as timestamp with time zone) as releasedate,
+f.owner,
+to_json( r.data) as data  from 
+(select jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
+from
+(select r.owner,  array_agg(ro.data), r.data_post, r.data as data_slave from
+(select r.owner, r.data_post, jsonb_build_object('nested', array_agg(r.data_slave)) as data from
+(select rd.owner, jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
+jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave from
+(select replace(m.mri, 'mri::', '') as resource_id from myneresourceinformation m where m.type = 'POST' and 
+replace(m.mri, 'mri::', '') not in 
+('d394890b-d001-43af-b280-2db7297bee1a',
+'4f667f43-f529-4f04-89e9-acc124a449e9',
+'f9f8b822-db26-4dfe-ae0c-9db629a714bc',
+'30dc34ec-c049-4533-9ddc-4382220529a3',
+'f8e33cfb-4f5f-469f-84e2-2e911a3c304b',
+'68cc0189-0ded-4495-b73b-611ff807dc7e',
+'ed02ac7b-7fd3-4aba-8557-5240e95bc538',
+'c1980d8b-53b2-4f41-abbd-d3b6b1de389b',
+'11f0e39d-13f5-4dcd-945e-3d9ecc49a75c',
+'36a7ea09-dfb7-4ab6-8d93-ad0b954fe3d8',
+'f0e688e6-138b-4d43-9c71-d38f50c0b33d',
+'865c7bb5-7007-44cf-ad44-87318f2fa131',
+'3a3b3ed7-63c8-4b5b-a7c2-80039e1005cc',
+'f753e12a-292b-4c73-a2ec-471b49033a87',
+'23563ec3-fc64-4d10-a253-1d2350d00ec9',
+'00b3a7ef-ea8b-400d-b944-f3d5fbcc309e')
+except
+select r.id from global.research r where r.type = 'POST') m
+cross join lateral findresourcedata(m.resource_id) as rd
+cross join lateral findresourcebyowner(m.resource_id) as ro) r 
+group by r.owner, r.data_post) r
+left join lateral findresourcebyowner(r.owner) ro on true
+where ro.type = 'PROFILE_IMAGE' or ro.type isnull
+group by r.owner, r.data_post, r.data) r 
+cross join lateral findresourcedata(r.owner) as ro) r
+left join findresourcedata(cast(r.data ->> 'id' as varchar)) as f on true
+left join myneresourceinformation m on f.owner = replace(m.mri, 'mri::', '')
+where m.type = 'USER' ;
+
+
+
+not in
+('d394890b-d001-43af-b280-2db7297bee1a',
+'4f667f43-f529-4f04-89e9-acc124a449e9',
+'f9f8b822-db26-4dfe-ae0c-9db629a714bc',
+'30dc34ec-c049-4533-9ddc-4382220529a3',
+'f8e33cfb-4f5f-469f-84e2-2e911a3c304b',
+'68cc0189-0ded-4495-b73b-611ff807dc7e',
+'ed02ac7b-7fd3-4aba-8557-5240e95bc538',
+'c1980d8b-53b2-4f41-abbd-d3b6b1de389b',
+'11f0e39d-13f5-4dcd-945e-3d9ecc49a75c',
+'36a7ea09-dfb7-4ab6-8d93-ad0b954fe3d8',
+'f0e688e6-138b-4d43-9c71-d38f50c0b33d',
+'865c7bb5-7007-44cf-ad44-87318f2fa131',
+'3a3b3ed7-63c8-4b5b-a7c2-80039e1005cc',
+'f753e12a-292b-4c73-a2ec-471b49033a87',
+'23563ec3-fc64-4d10-a253-1d2350d00ec9',
+'00b3a7ef-ea8b-400d-b944-f3d5fbcc309e')
+
+
+
+
+
+
+insert into "global".research(id, createdate, type, tag, ts_vector, releasedate, owner, research_data)
+select u.id, u.createdate, u.type, u.tag, u.ts_vector, u.releasedate, u.owner, u.data
+from
+(select cast(r.data ->> 'id' as varchar) as id,  cast(r.data ->> 'createDate' as timestamp with time zone) as createdate,
+cast('POST' as varchar) as type, concat(cast(r.data ->> 'title' as varchar)) as tag,
+to_tsvector(cast(r.data ->> 'title' as varchar)) as ts_vector, cast(r.data ->> 'releaseDate' as timestamp with time zone) as releasedate,
+f.owner,
+to_json( r.data) as data  from 
+(select jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
+from
+(select r.owner,  array_agg(ro.data), r.data_post, r.data as data_slave from
+(select r.owner, r.data_post, jsonb_build_object('nested', array_agg(r.data_slave)) as data from
+(select rd.owner, jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
+jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave from
+(select replace(m.mri, 'mri::', '') as resource_id from myneresourceinformation m where m.type = 'POST' and 
+replace(m.mri, 'mri::', '') not in 
+('d394890b-d001-43af-b280-2db7297bee1a',
+'4f667f43-f529-4f04-89e9-acc124a449e9',
+'f9f8b822-db26-4dfe-ae0c-9db629a714bc',
+'30dc34ec-c049-4533-9ddc-4382220529a3',
+'f8e33cfb-4f5f-469f-84e2-2e911a3c304b',
+'68cc0189-0ded-4495-b73b-611ff807dc7e',
+'ed02ac7b-7fd3-4aba-8557-5240e95bc538',
+'c1980d8b-53b2-4f41-abbd-d3b6b1de389b',
+'11f0e39d-13f5-4dcd-945e-3d9ecc49a75c',
+'36a7ea09-dfb7-4ab6-8d93-ad0b954fe3d8',
+'f0e688e6-138b-4d43-9c71-d38f50c0b33d',
+'865c7bb5-7007-44cf-ad44-87318f2fa131',
+'3a3b3ed7-63c8-4b5b-a7c2-80039e1005cc',
+'f753e12a-292b-4c73-a2ec-471b49033a87',
+'23563ec3-fc64-4d10-a253-1d2350d00ec9',
+'00b3a7ef-ea8b-400d-b944-f3d5fbcc309e')
+except
+select r.id from global.research r where r.type = 'POST') m
+cross join lateral findresourcedata(m.resource_id) as rd
+cross join lateral findresourcebyowner(m.resource_id) as ro) r 
+group by r.owner, r.data_post) r
+left join lateral findresourcebyowner(r.owner) ro on true
+where ro.type = 'PROFILE_IMAGE' or ro.type isnull
+group by r.owner, r.data_post, r.data) r 
+cross join lateral findresourcedata(r.owner) as ro) r
+left join findresourcedata(cast(r.data ->> 'id' as varchar)) as f on true
+left join myneresourceinformation m on f.owner = replace(m.mri, 'mri::', '')
+where m.type = 'USER' ) u;
+
+
+
+
+
+select public.myneresearch('max', 'USER', 10, 0)
+
+
+CREATE OR REPLACE FUNCTION public.myneresearch(research character varying, research_type character varying, itens_by_page integer, page integer)
+ RETURNS SETOF mynejsontype
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.mynejsontype%ROWTYPE;
+BEGIN
+
+
+IF research_type = 'POST' then
+	RETURN query
+	
+select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json( r.data) as data  from 
+(select jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
+from
+(select r.owner,  array_agg(ro.data), r.data_post, r.data as data_slave from
+(select r.owner, r.data_post, jsonb_build_object('nested', array_agg(r.data_slave)) as data from
+(select rd.owner, jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
+jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave from
+(select replace(m.mri,'mri::','') as resource_id, 
+t.id, tsvector_agg(t.tag_tsv), similarity(lower(unaccent(STRING_AGG(t.tag, ' '))), lower(unaccent(research)))
+from tag t, myneresourceinformation m, resourcetag r 
+where 
+ m.id = r.resource and r.tag = t.id and 
+t.tag_tsv @@
+to_tsquery('portuguese',(select replace(unaccent(trim(research)),' ',' | ')))
+and m.type = 'POST'
+group by t.id , m.mri
+order by similarity desc
+limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+) m
+cross join lateral findresourcedata(m.resource_id) as rd
+cross join lateral findresourcebyowner(m.resource_id) as ro) r 
+group by r.owner, r.data_post) r
+left join lateral findresourcebyowner(r.owner) ro on true
+where ro.type = 'PROFILE_IMAGE' or ro.type isnull
+group by r.owner, r.data_post, r.data) r 
+cross join lateral findresourcedata(r.owner) as ro) r;
+
+
+
+
+elsif research_type = 'PRODUCT' then
+	RETURN query
+	
+select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json( r.data) as data from 
+(select jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
+from
+(select r.owner,  array_agg(ro.data), r.data_post, r.data as data_slave from
+(select r.owner, r.data_post, jsonb_build_object('nested', array_agg(r.data_slave)) as data from
+(select rd.owner, jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
+jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave from
+(select replace(m.mri,'mri::','') as resource_id, 
+t.id, tsvector_agg(t.tag_tsv), similarity(lower(unaccent(STRING_AGG(t.tag, ' '))), lower(unaccent(research)))
+from tag t, myneresourceinformation m, resourcetag r 
+where 
+ m.id = r.resource and r.tag = t.id and --m.type = :type and
+t.tag_tsv @@
+to_tsquery('portuguese',(select replace(unaccent(trim(research)),' ',' | ')))
+and m.type = 'PRODUCT'
+group by t.id , m.mri
+order by similarity desc
+limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+) m
+cross join lateral findresourcedata(m.resource_id) as rd
+cross join lateral findresourcebyowner(m.resource_id) as ro) r 
+group by r.owner, r.data_post) r
+left join lateral findresourcebyowner(r.owner) ro on true
+where ro.type = 'PROFILE_IMAGE' or ro.type isnull
+group by r.owner, r.data_post, r.data) r 
+cross join lateral findresourcedata(r.owner) as ro) r;
+
+
+
+
+elsif research_type = 'USER' then
+
+RETURN query
+
+select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json(r.data) as data from
+(select jsonb_build_object('type', rd.type) || jsonb(rd.data)|| jsonb_build_object('profile_image', ro.data) as data from
+(select replace(m.mri,'mri::','') as resource_id, 
+t.id, tsvector_agg(t.tag_tsv), similarity(lower(unaccent(STRING_AGG(t.tag, ' '))), lower(unaccent(research)))
+from tag t, myneresourceinformation m, resourcetag r 
+where 
+ m.id = r.resource and r.tag = t.id and --m.type = :type and
+t.tag_tsv @@
+to_tsquery('portuguese',(select replace(unaccent(trim(research)),' ',' | ')))
+group by t.id , m.mri
+order by similarity desc
+limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+) m
+cross join lateral findresourcedata(m.resource_id) as rd
+LEFT   JOIN LATERAL findresourcebyowner(m.resource_id) ro ON true
+where ro.type isnull or ro.type = 'PROFILE_IMAGE') r;
+
+
+elsif research_type = 'NULO' then
+
+RETURN query
+
+
+select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json( r.data) as data from 
+(select jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
+from
+(select r.owner,  array_agg(ro.data), r.data_post, r.data as data_slave from
+(select r.owner, r.data_post, jsonb_build_object('nested', array_agg(r.data_slave)) as data from
+(select rd.owner, jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
+jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave from
+(select replace(m.mri,'mri::','') as resource_id, 
+t.id, tsvector_agg(t.tag_tsv), similarity(lower(unaccent(STRING_AGG(t.tag, ' '))), lower(unaccent(research)))
+from tag t, myneresourceinformation m, resourcetag r 
+where 
+ m.id = r.resource and r.tag = t.id and
+t.tag_tsv @@
+to_tsquery('portuguese',(select replace(unaccent(trim(research)),' ',' | ')))
+and m.type = 'POST'
+group by t.id , m.mri
+order by similarity desc
+limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+) m
+cross join lateral findresourcedata(m.resource_id) as rd
+cross join lateral findresourcebyowner(m.resource_id) as ro) r 
+group by r.owner, r.data_post) r
+left join lateral findresourcebyowner(r.owner) ro on true
+where ro.type = 'PROFILE_IMAGE' or ro.type isnull
+group by r.owner, r.data_post, r.data) r 
+cross join lateral findresourcedata(r.owner) as ro) r
+
+union all
+
+select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json(r.data) as data from
+(select jsonb_build_object('type', rd.type) || jsonb(rd.data)|| jsonb_build_object('profile_image', ro.data) as data from
+(select replace(m.mri,'mri::','') as resource_id, 
+t.id, tsvector_agg(t.tag_tsv), similarity(lower(unaccent(STRING_AGG(t.tag, ' '))), lower(unaccent(research)))
+from tag t, myneresourceinformation m, resourcetag r 
+where 
+ m.id = r.resource and r.tag = t.id and m.type = 'USER' and
+t.tag_tsv @@
+to_tsquery('portuguese',(select replace(unaccent(trim(research)),' ',' | ')))
+group by t.id , m.mri
+order by similarity desc
+limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+) m
+cross join lateral findresourcedata(m.resource_id) as rd
+LEFT   JOIN LATERAL findresourcebyowner(m.resource_id) ro ON true
+where ro.type isnull or ro.type = 'PROFILE_IMAGE') r
+
+union all
+
+select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json( r.data) as data from 
+(select jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
+from
+(select r.owner,  array_agg(ro.data), r.data_post, r.data as data_slave from
+(select r.owner, r.data_post, jsonb_build_object('nested', array_agg(r.data_slave)) as data from
+(select rd.owner, jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
+jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave from
+(select replace(m.mri,'mri::','') as resource_id, 
+t.id, tsvector_agg(t.tag_tsv), similarity(lower(unaccent(STRING_AGG(t.tag, ' '))), lower(unaccent(research)))
+from tag t, myneresourceinformation m, resourcetag r 
+where 
+ m.id = r.resource and r.tag = t.id and --m.type = :type and
+t.tag_tsv @@
+to_tsquery('portuguese',(select replace(unaccent(trim(research)),' ',' | ')))
+and m.type = 'PRODUCT'
+group by t.id , m.mri
+order by similarity desc
+limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+) m
+cross join lateral findresourcedata(m.resource_id) as rd
+cross join lateral findresourcebyowner(m.resource_id) as ro) r 
+group by r.owner, r.data_post) r
+left join lateral findresourcebyowner(r.owner) ro on true
+where ro.type = 'PROFILE_IMAGE' or ro.type isnull
+group by r.owner, r.data_post, r.data) r 
+cross join lateral findresourcedata(r.owner) as ro) r;
+
+end IF ;
+  
+ 
+
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
 
 
 
