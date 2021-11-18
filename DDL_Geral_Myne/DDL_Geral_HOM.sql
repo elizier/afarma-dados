@@ -172,9 +172,10 @@ CREATE TABLE public.identificationdocument (
 CREATE TABLE public.insight (
 	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
 	active bool NOT NULL DEFAULT true,
-	createdate timestamp NOT NULL DEFAULT now(),
+	createdate timestamptz NOT NULL DEFAULT now(),
 	insighttype varchar(255) NULL,
 	url varchar(255) NULL,
+	releasedate timestamptz NOT NULL DEFAULT now(),
 	CONSTRAINT insight_pkey PRIMARY KEY (id)
 );
 
@@ -203,10 +204,10 @@ CREATE TABLE public.launch (
 -- DROP TABLE public.launchworkflow;
 
 CREATE TABLE public.launchworkflow (
-	id varchar(36) NOT NULL,
-	enddate timestamp NULL,
-	phase int4 NULL,
-	startdate timestamp NULL,
+	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
+	enddate timestamptz NULL,
+	phase varchar(255) NOT NULL,
+	startdate timestamptz NULL,
 	CONSTRAINT launchworkflow_pkey PRIMARY KEY (id)
 );
 
@@ -233,10 +234,11 @@ CREATE TABLE public."like" (
 
 CREATE TABLE public."module" (
 	id varchar(36) NOT NULL,
-	active bool NOT NULL,
-	createdate timestamp NULL,
+	active bool NOT NULL DEFAULT true,
+	createdate timestamp NOT NULL DEFAULT now(),
 	description varchar(255) NULL,
 	details varchar(255) NULL,
+	"name" varchar(255) NOT NULL,
 	CONSTRAINT module_pkey PRIMARY KEY (id)
 );
 
@@ -291,6 +293,7 @@ CREATE TABLE public.myneuser (
 	visibility varchar(32) NOT NULL DEFAULT 'PUBLIC'::character varying,
 	"method" varchar NULL DEFAULT 'Myne'::character varying,
 	CONSTRAINT myneuser_pkey PRIMARY KEY (id),
+	CONSTRAINT myneuser_un UNIQUE (email),
 	CONSTRAINT uk_78xrwtd24kvmcjhsc006sjivr UNIQUE (slug)
 );
 
@@ -358,6 +361,7 @@ CREATE TABLE public.price (
 	active bool NOT NULL,
 	discount float8 NOT NULL,
 	price float8 NOT NULL,
+	createdate timestamptz NOT NULL DEFAULT now(),
 	CONSTRAINT price_pkey PRIMARY KEY (id)
 );
 
@@ -378,11 +382,12 @@ insert
 CREATE TABLE public.product (
 	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
 	active bool NOT NULL DEFAULT true,
-	createdate timestamp NOT NULL DEFAULT now(),
+	createdate timestamptz NOT NULL DEFAULT now(),
 	description varchar(10240) NULL,
 	"name" varchar(255) NULL,
 	producttype varchar(255) NULL,
 	details varchar(10240) NULL,
+	releasedate timestamptz NOT NULL DEFAULT now(),
 	CONSTRAINT product_pkey PRIMARY KEY (id)
 );
 
@@ -580,6 +585,7 @@ CREATE TABLE public.messagenotification (
 	title varchar(255) NULL,
 	receiverid varchar(36) NOT NULL,
 	senderid varchar(36) NOT NULL,
+	link varchar(10240) NULL,
 	CONSTRAINT messagenotification_pkey PRIMARY KEY (id),
 	CONSTRAINT fk5liknp4huj0bry2tbf81v47k1 FOREIGN KEY (senderid) REFERENCES public.myneuser(id),
 	CONSTRAINT fkbujicj06wbwl43xkwraffia2j FOREIGN KEY (receiverid) REFERENCES public.myneuser(id)
@@ -594,14 +600,22 @@ CREATE TABLE public.messagenotification (
 
 CREATE TABLE public.post (
 	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
-	createdate timestamp NOT NULL DEFAULT now(),
+	createdate timestamptz NOT NULL DEFAULT now(),
 	description varchar(10240) NULL DEFAULT 'Myne Post DESC'::character varying,
 	title varchar(255) NULL DEFAULT 'Myne Post TITLE'::character varying,
 	owner_id varchar(36) NULL,
 	cancomment bool NOT NULL DEFAULT true,
+	releasedate timestamptz NOT NULL DEFAULT now(),
 	CONSTRAINT post_pkey PRIMARY KEY (id),
 	CONSTRAINT fksmimo05ej6b8u91r6omk3n85g FOREIGN KEY (owner_id) REFERENCES public.myneuser(id)
 );
+
+-- Table Triggers
+
+create trigger insertposttag after
+insert
+    on
+    public.post for each row execute function tagpostinsert();
 
 
 -- public.purchase definition
@@ -611,9 +625,9 @@ CREATE TABLE public.post (
 -- DROP TABLE public.purchase;
 
 CREATE TABLE public.purchase (
-	id varchar(36) NOT NULL,
-	createdate timestamp NULL,
-	value float8 NOT NULL,
+	id varchar(36) NOT NULL DEFAULT uuid_generate_v4(),
+	createdate timestamptz NOT NULL DEFAULT now(),
+	value float4 NOT NULL DEFAULT 0,
 	launch_id varchar(36) NULL,
 	product_id varchar(36) NULL,
 	CONSTRAINT purchase_pkey PRIMARY KEY (id),
@@ -692,6 +706,7 @@ CREATE TABLE public.myneresourceinformation (
 	CONSTRAINT fknk23pifl0ru91hn57oqljajnm FOREIGN KEY (owner_id) REFERENCES public.myneresourceinformation(id),
 	CONSTRAINT fkso12pi6ebo8rcjv3e9pi3ybnd FOREIGN KEY (post) REFERENCES public.post(id)
 );
+CREATE UNIQUE INDEX resource_index ON public.myneresourceinformation USING btree (id, mri);
 
 
 -- public.ownerresources definition
@@ -709,6 +724,7 @@ CREATE TABLE public.ownerresources (
 	CONSTRAINT fk2pdgglupfwvs49i8e3w5ovfkb FOREIGN KEY (slave) REFERENCES public.myneresourceinformation(id),
 	CONSTRAINT fkoxoer1503fnjf9g63kcm9bujx FOREIGN KEY ("owner") REFERENCES public.myneresourceinformation(id)
 );
+CREATE INDEX owner_resource_index ON public.ownerresources USING btree (owner, slave);
 
 
 -- public.resourcetag definition
@@ -773,19 +789,73 @@ CREATE TABLE public."comment" (
 );
 
 
+-- public.globalfeed source
 
-CREATE OR REPLACE FUNCTION public.dblink(text)
- RETURNS SETOF record
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_record$function$
-;
+CREATE MATERIALIZED VIEW public.globalfeed
+TABLESPACE pg_default
+AS SELECT uuid_generate_v4()::character varying AS id,
+    f.viewbyday,
+    (f.post_data ->> 'id'::text)::character varying AS post_id,
+    'POST'::text AS type,
+    jsonb_build_object('user', f.user_data || jsonb_build_object('profile_image', p.data)) || f.post_data AS data
+   FROM ( SELECT f_1.viewbyday,
+            f_1.user_id,
+            jsonb_build_object('user', f_1.user_data) AS user_data,
+            f_1.post_data || jsonb_build_object('nested', array_agg(to_jsonb(p_1.data) || jsonb_build_object('type', p_1.type))) AS post_data
+           FROM ( SELECT a.accountability_id,
+                    a.views::double precision /
+                        CASE
+                            WHEN date_part('day'::text, now() - ((f_2.data ->> 'createDate'::text)::timestamp with time zone)) = 0::double precision THEN 1::double precision
+                            ELSE date_part('day'::text, now() - ((f_2.data ->> 'createDate'::text)::timestamp with time zone))
+                        END AS viewbyday,
+                    f_2.owner AS user_id,
+                    to_jsonb(u.data) AS user_data,
+                    jsonb_build_object('type', f_2.type) || to_jsonb(f_2.data) AS post_data
+                   FROM ( SELECT a_1.id AS accountability_id,
+                            a_1.views
+                           FROM accountability a_1
+                          ORDER BY a_1.views DESC, a_1.id DESC) a
+                     LEFT JOIN LATERAL findownerdata(a.accountability_id) f_2(owner, type, id, data) ON true
+                     LEFT JOIN LATERAL findresourcedata(f_2.owner) u(owner, type, id, data) ON true
+                  WHERE f_2.type::text = 'POST'::text) f_1
+             LEFT JOIN LATERAL findresourcebyowner((f_1.post_data ->> 'id'::text)::character varying) p_1(owner, type, id, data) ON true
+          WHERE f_1.user_id IS NOT NULL AND f_1.user_id::text <> 'DON''T HAVE'::text
+          GROUP BY f_1.user_id, f_1.viewbyday, f_1.post_data, f_1.user_data) f
+     LEFT JOIN LATERAL findresourcebyownerandtype(f.user_id, 'PROFILE_IMAGE'::character varying) p(owner, type, id, data) ON true
+  ORDER BY f.viewbyday DESC
+WITH DATA;
 
-CREATE OR REPLACE FUNCTION public.dblink(text, text)
- RETURNS SETOF record
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_record$function$
+
+
+CREATE OR REPLACE FUNCTION public.checkpurchase(user_id character varying, product character varying)
+ RETURNS SETOF mynejsontype
+ LANGUAGE plpgsql
+AS $function$
+   declare
+      resource_t public.mynejsontype%ROWTYPE;
+
+begin
+
+ 	for resource_t in
+ 
+
+	select cast(uuid_generate_v4() as varchar) as id,
+	'PURCHASE' as type, json_build_object('purchased', (case when p.product_id isnull then 'false' else 'true' end)) as purchase from
+(select o.slave, replace(m.mri, 'mri::', '') as user_id  from myneresourceinformation m, ownerresources o 
+where replace(m.mri, 'mri::', '') = user_id and o."owner" = m.id and o."type" = 'USER_PURCHASE') up
+left join
+myneresourceinformation m on m.id = up.slave
+left join purchase p on replace(m.mri, 'mri::', '') = p.id
+where p.product_id = product
+
+loop
+		return next resource_t;
+end loop;
+
+return;
+end;
+
+$function$
 ;
 
 CREATE OR REPLACE FUNCTION public.dblink(text, boolean)
@@ -795,7 +865,21 @@ CREATE OR REPLACE FUNCTION public.dblink(text, boolean)
 AS '$libdir/dblink', $function$dblink_record$function$
 ;
 
+CREATE OR REPLACE FUNCTION public.dblink(text)
+ RETURNS SETOF record
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_record$function$
+;
+
 CREATE OR REPLACE FUNCTION public.dblink(text, text, boolean)
+ RETURNS SETOF record
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_record$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink(text, text)
  RETURNS SETOF record
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
@@ -830,21 +914,7 @@ CREATE OR REPLACE FUNCTION public.dblink_cancel_query(text)
 AS '$libdir/dblink', $function$dblink_cancel_query$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_close(text, boolean)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_close$function$
-;
-
 CREATE OR REPLACE FUNCTION public.dblink_close(text, text, boolean)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_close$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_close(text, text)
  RETURNS text
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
@@ -858,11 +928,18 @@ CREATE OR REPLACE FUNCTION public.dblink_close(text)
 AS '$libdir/dblink', $function$dblink_close$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_connect(text)
+CREATE OR REPLACE FUNCTION public.dblink_close(text, boolean)
  RETURNS text
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_connect$function$
+AS '$libdir/dblink', $function$dblink_close$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_close(text, text)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_close$function$
 ;
 
 CREATE OR REPLACE FUNCTION public.dblink_connect(text, text)
@@ -872,14 +949,21 @@ CREATE OR REPLACE FUNCTION public.dblink_connect(text, text)
 AS '$libdir/dblink', $function$dblink_connect$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_connect_u(text, text)
+CREATE OR REPLACE FUNCTION public.dblink_connect(text)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_connect$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_connect_u(text)
  RETURNS text
  LANGUAGE c
  PARALLEL RESTRICTED STRICT SECURITY DEFINER
 AS '$libdir/dblink', $function$dblink_connect$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_connect_u(text)
+CREATE OR REPLACE FUNCTION public.dblink_connect_u(text, text)
  RETURNS text
  LANGUAGE c
  PARALLEL RESTRICTED STRICT SECURITY DEFINER
@@ -893,14 +977,14 @@ CREATE OR REPLACE FUNCTION public.dblink_current_query()
 AS '$libdir/dblink', $function$dblink_current_query$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_disconnect()
+CREATE OR REPLACE FUNCTION public.dblink_disconnect(text)
  RETURNS text
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
 AS '$libdir/dblink', $function$dblink_disconnect$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_disconnect(text)
+CREATE OR REPLACE FUNCTION public.dblink_disconnect()
  RETURNS text
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
@@ -914,13 +998,6 @@ CREATE OR REPLACE FUNCTION public.dblink_error_message(text)
 AS '$libdir/dblink', $function$dblink_error_message$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_exec(text, text)
- RETURNS text
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_exec$function$
-;
-
 CREATE OR REPLACE FUNCTION public.dblink_exec(text)
  RETURNS text
  LANGUAGE c
@@ -929,6 +1006,13 @@ AS '$libdir/dblink', $function$dblink_exec$function$
 ;
 
 CREATE OR REPLACE FUNCTION public.dblink_exec(text, boolean)
+ RETURNS text
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_exec$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_exec(text, text)
  RETURNS text
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
@@ -949,21 +1033,14 @@ CREATE OR REPLACE FUNCTION public.dblink_fdw_validator(options text[], catalog o
 AS '$libdir/dblink', $function$dblink_fdw_validator$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_fetch(text, text, integer, boolean)
- RETURNS SETOF record
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_fetch$function$
-;
-
-CREATE OR REPLACE FUNCTION public.dblink_fetch(text, text, integer)
- RETURNS SETOF record
- LANGUAGE c
- PARALLEL RESTRICTED STRICT
-AS '$libdir/dblink', $function$dblink_fetch$function$
-;
-
 CREATE OR REPLACE FUNCTION public.dblink_fetch(text, integer, boolean)
+ RETURNS SETOF record
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_fetch$function$
+;
+
+CREATE OR REPLACE FUNCTION public.dblink_fetch(text, text, integer, boolean)
  RETURNS SETOF record
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
@@ -977,6 +1054,13 @@ CREATE OR REPLACE FUNCTION public.dblink_fetch(text, integer)
 AS '$libdir/dblink', $function$dblink_fetch$function$
 ;
 
+CREATE OR REPLACE FUNCTION public.dblink_fetch(text, text, integer)
+ RETURNS SETOF record
+ LANGUAGE c
+ PARALLEL RESTRICTED STRICT
+AS '$libdir/dblink', $function$dblink_fetch$function$
+;
+
 CREATE OR REPLACE FUNCTION public.dblink_get_connections()
  RETURNS text[]
  LANGUAGE c
@@ -984,14 +1068,14 @@ CREATE OR REPLACE FUNCTION public.dblink_get_connections()
 AS '$libdir/dblink', $function$dblink_get_connections$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_get_notify(conname text, OUT notify_name text, OUT be_pid integer, OUT extra text)
+CREATE OR REPLACE FUNCTION public.dblink_get_notify(OUT notify_name text, OUT be_pid integer, OUT extra text)
  RETURNS SETOF record
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
 AS '$libdir/dblink', $function$dblink_get_notify$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_get_notify(OUT notify_name text, OUT be_pid integer, OUT extra text)
+CREATE OR REPLACE FUNCTION public.dblink_get_notify(conname text, OUT notify_name text, OUT be_pid integer, OUT extra text)
  RETURNS SETOF record
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
@@ -1005,14 +1089,14 @@ CREATE OR REPLACE FUNCTION public.dblink_get_pkey(text)
 AS '$libdir/dblink', $function$dblink_get_pkey$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_get_result(text)
+CREATE OR REPLACE FUNCTION public.dblink_get_result(text, boolean)
  RETURNS SETOF record
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
 AS '$libdir/dblink', $function$dblink_get_result$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_get_result(text, boolean)
+CREATE OR REPLACE FUNCTION public.dblink_get_result(text)
  RETURNS SETOF record
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
@@ -1026,14 +1110,14 @@ CREATE OR REPLACE FUNCTION public.dblink_is_busy(text)
 AS '$libdir/dblink', $function$dblink_is_busy$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_open(text, text)
+CREATE OR REPLACE FUNCTION public.dblink_open(text, text, boolean)
  RETURNS text
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
 AS '$libdir/dblink', $function$dblink_open$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_open(text, text, boolean)
+CREATE OR REPLACE FUNCTION public.dblink_open(text, text)
  RETURNS text
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
@@ -1243,6 +1327,154 @@ END;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.findmylaunchs(user_id character varying, type_ character varying)
+ RETURNS SETOF mynejsontype
+ LANGUAGE plpgsql
+AS $function$
+   declare
+      resource_t public.mynejsontype%ROWTYPE;
+
+begin
+
+ 	for resource_t in
+ 	
+select
+	cast(uuid_generate_v4() as varchar) as id,
+	'LAUNCH' as "type",
+	l.launch_data || jsonb_build_object('nested', array_agg(l.product_data)) || l.user_data as data
+from
+	(
+	select
+		l.launch_data,
+		l.product_data || jsonb_build_object('nested', array_agg(l.product_nested)) as product_data,
+		jsonb_build_object('user', jsonb_build_object('user', l.user_data) || jsonb_build_object('profile_image', l.profile_image)) as user_data
+	from
+		(
+		select
+			jsonb_build_object('type', f.type) || to_jsonb(f.data) as launch_data,
+			jsonb_build_object('type', ow.type) || to_jsonb(ow.data) as user_data,
+			jsonb_build_object('type', ro.type) || to_jsonb(ro.data) as product_data,
+			jsonb_build_object('type', rf.type) || to_jsonb(rf.data) as profile_image,
+			jsonb_build_object('type', pn.type) || to_jsonb(pn.data) as product_nested
+		from
+			(
+			select
+				m.id
+			from
+				myneresourceinformation m
+			where
+				replace(m.mri, 'mri::', '') = coalesce(user_id, replace(m.mri, 'mri::', ''))
+				and m.type = 'USER') m
+		left join ownerresources o on
+			m.id = o.owner
+		left join myneresourceinformation mr on
+			o.slave = mr.id
+		left join lateral findresourcedata(replace(mr.mri, 'mri::', '')) as f on
+			true
+		left join lateral findresourcedata(f.owner) as ow on
+			true
+		left join lateral findresourcebyowner(cast(f.data ->> 'id' as varchar)) as ro on
+			true
+		left join lateral findresourcebyownerandtype(cast(ow.data ->> 'id' as varchar),
+			'PROFILE_IMAGE') as rf on
+			true
+		left join lateral findresourcebyowner(cast(ro.data ->> 'id' as varchar)) as pn on
+			true
+		where
+			mr.type = 'LAUNCH'
+			and cast(f.data ->> 'launchType' as varchar) = coalesce(nullif(type_, 'NULO'), cast(f.data ->> 'launchType' as varchar)) ) l
+	group by
+		launch_data,
+		l.user_data,
+		l.product_data,
+		l.profile_image
+		) l
+group by
+	l.launch_data,
+		l.user_data
+
+
+loop
+		return next resource_t;
+end loop;
+
+return;
+end;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.findmylearning(user_id character varying, type_ character varying)
+ RETURNS SETOF mynejsontype
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.mynejsontype%ROWTYPE;
+BEGIN
+
+ 	FOR resource_t in
+ 	
+SELECT cast(uuid_generate_v4() AS VARCHAR) AS id
+	,'PRODUCT' AS "type"
+	,p.data
+FROM (
+	SELECT jsonb_build_object('nested', array_agg(p.product_nested) || p.purchase_data || p.launch_data) || jsonb_build_object('user', jsonb_build_object('profile_image', p.profile_image) || jsonb_build_object('user', p.user)) || p.product_data AS data
+	FROM (
+		SELECT cast(f.data ->> 'product_id' AS VARCHAR) AS product_id
+			,cast(f.data ->> 'launch_id' AS VARCHAR) AS launch_id
+			,jsonb_build_object('type', p.type) || jsonb(p.data) AS product_nested
+			,jsonb_build_object('type', f.type) || (jsonb(f.data) - 'product_id' - 'launch_id') AS purchase_data
+			,jsonb_build_object('type', 'LAUNCH') || (
+				CASE 
+					WHEN jsonb(l.data) isnull
+						THEN jsonb_build_object('data', NULL)
+					ELSE jsonb(l.data)
+					END
+				) AS launch_data
+			,jsonb_build_object('type', pd.type) || jsonb(pd.data) AS product_data
+			,jsonb_build_object('type', ph.type) || jsonb(ph.data) AS profile_image
+			,jsonb(u.data) AS "user"
+		FROM (
+			SELECT m.id
+			FROM PUBLIC.myneresourceinformation m
+			WHERE m.mri = CONCAT (
+					'mri::'
+					,user_id
+					)
+			) m
+		LEFT JOIN ownerresources o ON m.id = o.OWNER
+		LEFT JOIN myneresourceinformation mr ON mr.id = o.slave
+		LEFT JOIN lateral findresourcedata(replace(mr.mri, 'mri::', '')) AS f ON true
+		LEFT JOIN lateral findresourcebyowner(cast(f.data ->> 'product_id' AS VARCHAR)) AS p ON true
+		LEFT JOIN lateral findresourcedata(cast(f.data ->> 'launch_id' AS VARCHAR)) AS l ON true
+		LEFT JOIN lateral findresourcedata(cast(f.data ->> 'product_id' AS VARCHAR)) AS pd ON true
+		LEFT JOIN lateral findresourcebyowner(pd.OWNER) AS ph ON true
+		LEFT JOIN lateral findresourcedata(pd.OWNER) AS u ON true
+		WHERE o.type = 'USER_PURCHASE'
+			AND ph.type = 'PROFILE_IMAGE'
+			AND cast(pd.data ->> 'productType' AS VARCHAR) = coalesce(nullif(type_, 'NULO'), cast(pd.data ->> 'productType' AS VARCHAR))
+		) p
+	GROUP BY p.purchase_data
+		,p.user
+		,p.profile_image
+		,p.launch_data
+		,p.product_data
+	) p
+
+
+loop
+		RETURN NEXT resource_t;
+	
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.findmynefeed(user_id character varying, itens_by_page integer, page integer)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
@@ -1253,91 +1485,65 @@ BEGIN
 
  	FOR resource_t in
 
-select cast(uuid_generate_v4() as varchar) as  id, (select m.type from public.myneresourceinformation m 
-where replace(m.mri , 'mri::', '') = replace(user_id, 'mri::', '')) as type, u.data as data from
-(
-select u.createdate_post, jsonb_build_object('user', u.user_data) || u.post as data  from 
-(
-select u.createdate_post, u.user_data, u.post_data || jsonb_build_object('nested', array_agg(u.data))  as post from
-(
-select  u.createdate_post, jsonb(u.user_data) as user_data, jsonb(u.post_data) as post_data, jsonb_build_object('type', p.type) || jsonb(p.data) as data from
-(SELECT row_to_json(u.*) as user_data, jsonb_build_object('type', p.type) || jsonb(p.data) as post_data, cast(p.data ->> 'createDate' AS TIMESTAMP) as createdate_post, cast(p.data ->> 'id' AS varchar) as id_post
-FROM (
-	select u.id, row_to_json(u.*) AS user
-		,(jsonb_build_object('id', o.s3_id) || jsonb_build_object('createDate', o."createDate") || jsonb_build_object('description', o.description) || jsonb_build_object('fileName', o."fileName") || jsonb_build_object('fileType', o."fileType") || jsonb_build_object('s3url', o.s3url)) AS profile_image
-	FROM (
-		SELECT u.id
-			,u.accountname as "accountName"
-			,u.active
-			,u.createdate as "createDate"
-			,u.devicetoken
-			,u.email
-			,u.name
-			,u.slug
-			,u.usertype
-			,u.visibility
-		FROM myneuser u
-		) u
-		,(
-			SELECT max(s.id) AS s3_id
-				,max(s.createdate) AS "createDate"
-				,max(s.description) AS description
-				,max(s.filename) AS "fileName"
-				,max(s.filetype) AS "fileType"
-				,max(s.s3url) AS s3url
-				,o.user_id
-			FROM (
-				SELECT pi.user_id
-					,replace(m.mri, 'mri::', '') AS s3_id
-				FROM (
-					SELECT u.user_id
-						,o.slave AS id
-					FROM (
-						SELECT u.user_id
-							,m.id AS mri_id
-						FROM (select distinct(u.user_id) as user_id
+ 	
+select cast(uuid_generate_v4() as varchar) as id, cast('POST' as varchar) as "type",
+	p.post_data || jsonb_build_object('nested', array_agg(p.post_resource)) || p.user_data as data
 from
-(
-(select u.to_id as user_id 
-from public.userrelation u
-where u.type ='FOLLOWER'
-and u.from_id = user_id)
-union all
-(select u.from_id as partner
-from public.userrelation u
-where u.type ='PARTNER'
-and u.to_id = user_id)
-union all
-(select u.from_id as mentor
-from public.userrelation u
-where u.type ='MENTOR'
-and u.to_id = user_id)
-union all 
-(select user_id)
-) u) u
-							,myneresourceinformation m
-						WHERE replace(m.mri, 'mri::', '') = u.user_id
-						) u
-					LEFT JOIN ownerresources o ON u.mri_id = o.OWNER
-						AND o.type = 'USER_PROFILE_IMAGE'
-					) pi
-				LEFT JOIN myneresourceinformation m ON pi.id = m.id
-				) o
-			LEFT JOIN s3file s ON o.s3_id = s.id
-			GROUP BY o.user_id
-			) o
-	WHERE o.user_id = u.id
-	) u
-cross join lateral findresourcebyownerandtype(u.id, 'POST') as p
-) u
-cross join lateral findresourcebyowner(u.id_post) as p) u
-group by u.user_data, u.post_data, u.createdate_post) u
-) u
-order by createdate_post desc
-limit coalesce(itens_by_page, 5)
-offset coalesce(page, 0) * coalesce(itens_by_page, 5)
-
+	(
+	select
+		jsonb_build_object('type', 'POST', 'id', pd.id, 'createDate', pd.createdate, 'description', pd.description, 'releaseDate', pd.releasedate, 'title', pd.title, 'canComment', pd.cancomment) as post_data,
+		jsonb_build_object('type', pr.type) || jsonb(pr.data) as post_resource,
+		jsonb_build_object('user', jsonb_build_object('user', jsonb_build_object('type', ur.type) || jsonb(ur.data)) || 
+jsonb_build_object('profile_image', jsonb_build_object('type', ud.type) || jsonb(ud.data))) as user_data
+	from
+		(
+		select
+			u.id as user_id,
+			o.slave as mri_id_slave,
+			mr.createdate,
+			replace(mr.mri, 'mri::', '') as post_id,
+			mr.type as slaves_type
+		from
+			(
+			select
+				distinct(r.to_id) as id
+			from
+				relationrequest r
+			where
+				r.status = 'ACCEPTED'
+				and
+(r.type = 'FOLLOWER'
+					or r.type = 'PUPIL'
+					or r.type = 'PARTNER')
+				and r.from_id = user_id) u
+		left join myneresourceinformation m on
+			replace(m.mri, 'mri::', '') = u.id
+		left join ownerresources o on
+			m.id = o."owner"
+		left join myneresourceinformation mr on
+			mr.id = o.slave
+		where
+			(o."type" = 'USER_POST' )
+		order by
+			mr.createdate desc,
+			mr.id asc
+		limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5)) u
+	left join post as pd on pd.id = u.post_id
+	left join lateral findresourcedata(u.user_id) as ud on
+		true
+	left join lateral findresourcebyowner(u.post_id) as pr on
+		true
+	left join lateral findresourcebyownerandtype(u.user_id,
+		'PROFILE_IMAGE') as ur on
+		true
+		where DATE_PART('day', now() - pd.releasedate) >= 0 )
+p
+group by
+	p.post_data,
+	p.user_data
 	
+
 loop
 		RETURN NEXT resource_t;
 	
@@ -1408,44 +1614,377 @@ AS $function$
       resource_t public.mynejsontype%ROWTYPE;
 BEGIN
 
- 	FOR resource_t in
-
-SELECT cast(uuid_generate_v4() AS VARCHAR) AS id
-	,'POST' AS type
-	,jsonb_build_object('user', f.user_data || jsonb_build_object('profile_image', p.data)) || f.post_data AS data
-FROM (
-	SELECT f.user_id
-		,jsonb_build_object('user', f.user_data) AS user_data
-		,f.post_data || jsonb_build_object('nested', array_agg(to_jsonb(p.data) || jsonb_build_object('type', p.type))) AS post_data
-	FROM (
-		SELECT a.accountability_id
-			,f.OWNER AS user_id
-			,to_jsonb(u.data) AS user_data
-			,jsonb_build_object('type', f.type) || to_jsonb(f.data) AS post_data
-		FROM (
-			SELECT a.id AS accountability_id
-			FROM accountability a
-			ORDER BY "views" DESC
-				,id DESC limit coalesce(itens_by_page, 5) offset coalesce(page, 0) * coalesce(itens_by_page, 5)
-			) a
-		LEFT JOIN lateral findownerdata(a.accountability_id) f ON true
-		LEFT JOIN lateral findresourcedata(f.OWNER) u ON true
-		) f
-	LEFT JOIN lateral findresourcebyowner(cast(f.post_data ->> 'id' AS VARCHAR)) p ON true
-	WHERE f.user_id notnull
-		AND f.user_id != 'DON''T HAVE'
-	GROUP BY f.user_id
-		,f.post_data
-		,f.user_data
-	) f
-LEFT JOIN lateral findresourcebyownerandtype(f.user_id, 'PROFILE_IMAGE') p ON true
-
+ 	FOR resource_t in	
+	
+	
+	select g.id, g.type, g.data from public.globalfeed g
+limit coalesce(itens_by_page, 5) offset coalesce(page, 0) * coalesce(itens_by_page, 5)
 
 	
 	loop
 		RETURN NEXT resource_t;
 	
    END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.findmyneglobalinsights(itens_by_page integer, page integer)
+ RETURNS SETOF mynejsontype
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.mynejsontype%ROWTYPE;
+BEGIN
+
+ 	FOR resource_t in	
+	
+	
+select
+	cast(uuid_generate_v4() as varchar) as id,
+	cast('INSIGHT' as varchar) as "type",
+	json(i.data)
+from
+	(
+	select
+		i.user || jsonb_build_object('insight', array_agg(i.insight)) as data
+	from
+		(
+		select
+			i.user,
+			i.insight_data || jsonb_build_object('nested', array_agg(i.insight_slave)) as insight
+		from
+			(
+			select
+				jsonb_build_object('type', ud.type) || jsonb(ud.data) ||
+jsonb_build_object('profile_image', jsonb_build_object('type', pf.type) || jsonb(pf.data)) as user ,
+				jsonb_build_object('type', ui.type) || jsonb(ui.data) as insight_data,
+				jsonb_build_object('type', id.type) || jsonb(id.data) as insight_slave
+			from
+				(
+				select
+					u.user_id
+				from
+					(
+					select
+						distinct(replace(m.mri, 'mri::', '')) user_id
+					from
+						myneresourceinformation m,
+						ownerresources o
+					where
+						o."type" = 'USER_INSIGHT'
+						and o."owner" = m.id
+ ) u
+				order by
+					random()
+				limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5)) u
+			left join lateral findresourcedata(u.user_id) as ud on
+				true
+			left join lateral findresourcebyownerandtype(u.user_id,
+				'PROFILE_IMAGE') as pf on
+				true
+			left join lateral findresourcebyownerandtype(u.user_id,
+				'INSIGHT') as ui on
+				true
+			left join lateral findresourcebyowner(cast(ui.data ->> 'id' as varchar)) as id on
+				true) i
+		group by
+			i.user,
+			i.insight_data) i
+	group by
+		i.user) i
+	
+	loop
+		RETURN NEXT resource_t;
+	
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.findmyneinsights(user_id character varying, itens_by_page integer, page integer, relation_type character varying)
+ RETURNS SETOF mynejsontype
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.mynejsontype%ROWTYPE;
+BEGIN
+
+ 	--FOR resource_t in
+
+--WARNING! ERRORS ENCOUNTERED DURING SQL PARSING!
+IF relation_type = 'FOLLOWING' then
+	RETURN query
+
+SELECT cast(uuid_generate_v4() AS VARCHAR) AS id
+	,cast('INSIGHT' as varchar) AS type
+	,to_json(r.data)
+FROM (
+	SELECT r.user || jsonb_build_object('insight', array_agg(r.data)) AS data
+	FROM (
+		SELECT r.user
+			,r.insight || jsonb_build_object('nested', array_agg(r.slave)) AS data
+		FROM (
+			SELECT to_jsonb(h.data) || jsonb_build_object('relation', r.relation) || jsonb_build_object('profile_image', jsonb(g.data)) AS user
+				,jsonb_build_object('type', i.type) || jsonb(i.data) AS insight
+				,jsonb_build_object('type', f.type) || jsonb(f.data) AS slave
+			FROM (
+				
+					SELECT *
+					FROM (
+						SELECT u.to_id
+							,'FOLLOWER' AS relation
+						FROM PUBLIC.userrelation u
+						WHERE u.type = 'FOLLOWER'
+							AND u.from_id = user_id
+						) a
+					
+					EXCEPT
+					
+					(
+						SELECT u.to_id
+							,'FOLLOWER'
+						FROM PUBLIC.userrelation u
+						WHERE u.type = 'PARTNER'
+							AND u.from_id = user_id
+						)
+					
+					EXCEPT
+					
+					(
+						SELECT u.from_id
+							,'FOLLOWER'
+						FROM PUBLIC.userrelation u
+						WHERE u.type = 'MENTOR'
+							AND u.to_id = user_id
+						) limit coalesce(itens_by_page, 5) offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+				) r
+			CROSS JOIN lateral findresourcebyowner(r.to_id) AS i
+			CROSS JOIN lateral findresourcebyowner(cast(i.data ->> 'id' AS VARCHAR)) AS f
+			LEFT JOIN lateral findresourcebyowner(r.to_id) AS g ON true
+			CROSS JOIN lateral findresourcedata(r.to_id) AS h
+			WHERE i.type = 'INSIGHT'
+				AND g.type = 'PROFILE_IMAGE'
+			) r
+		GROUP BY r.user
+			,r.insight
+		) r
+	GROUP BY r.user
+	) r;
+
+elsif relation_type = 'PARTNER' then
+
+RETURN query
+
+SELECT cast(uuid_generate_v4() AS VARCHAR) AS id
+	,cast('INSIGHT' as varchar) AS type
+	,to_json(r.data)
+FROM (
+	SELECT r.user || jsonb_build_object('insight', array_agg(r.data)) AS data
+	FROM (
+		SELECT r.user
+			,r.insight || jsonb_build_object('nested', array_agg(r.slave)) AS data
+		FROM (
+			SELECT to_jsonb(h.data) || jsonb_build_object('relation', r.relation) || jsonb_build_object('profile_image', jsonb(g.data)) AS user
+				,jsonb_build_object('type', i.type) || jsonb(i.data) AS insight
+				,jsonb_build_object('type', f.type) || jsonb(f.data) AS slave
+			FROM (
+				
+				(
+					SELECT *
+					FROM (
+						SELECT u.to_id
+							,'PARTNER' as relation
+						FROM PUBLIC.userrelation u
+						WHERE u.type = 'PARTNER'
+							AND u.from_id = user_id
+						) a
+					
+					EXCEPT
+					
+					(
+						SELECT u.from_id
+							,'PARTNER'
+						FROM PUBLIC.userrelation u
+						WHERE u.type = 'MENTOR'
+							AND u.to_id = user_id
+						) limit coalesce(itens_by_page, 5) offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+					)
+				
+				
+				) r
+			CROSS JOIN lateral findresourcebyowner(r.to_id) AS i
+			CROSS JOIN lateral findresourcebyowner(cast(i.data ->> 'id' AS VARCHAR)) AS f
+			LEFT JOIN lateral findresourcebyowner(r.to_id) AS g ON true
+			CROSS JOIN lateral findresourcedata(r.to_id) AS h
+			WHERE i.type = 'INSIGHT'
+				AND g.type = 'PROFILE_IMAGE'
+			) r
+		GROUP BY r.user
+			,r.insight
+		) r
+	GROUP BY r.user
+	) r;
+
+elsif relation_type = 'MENTOR' then
+
+RETURN query
+
+SELECT cast(uuid_generate_v4() AS VARCHAR) AS id
+	,cast('INSIGHT' as varchar) AS type
+	,to_json(r.data)
+FROM (
+	SELECT r.user || jsonb_build_object('insight', array_agg(r.data)) AS data
+	FROM (
+		SELECT r.user
+			,r.insight || jsonb_build_object('nested', array_agg(r.slave)) AS data
+		FROM (
+			SELECT to_jsonb(h.data) || jsonb_build_object('relation', r.relation) || jsonb_build_object('profile_image', jsonb(g.data)) AS user
+				,jsonb_build_object('type', i.type) || jsonb(i.data) AS insight
+				,jsonb_build_object('type', f.type) || jsonb(f.data) AS slave
+			FROM (
+				
+				
+				
+					SELECT *
+					FROM (
+						SELECT u.from_id as to_id
+							,'MENTOR' as relation
+						FROM PUBLIC.userrelation u
+						WHERE u.type = 'MENTOR'
+							AND u.to_id = user_id
+						) a limit coalesce(itens_by_page, 5) offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+					
+				) r
+			CROSS JOIN lateral findresourcebyowner(r.to_id) AS i
+			CROSS JOIN lateral findresourcebyowner(cast(i.data ->> 'id' AS VARCHAR)) AS f
+			LEFT JOIN lateral findresourcebyowner(r.to_id) AS g ON true
+			CROSS JOIN lateral findresourcedata(r.to_id) AS h
+			WHERE i.type = 'INSIGHT'
+				AND g.type = 'PROFILE_IMAGE'
+			) r
+		GROUP BY r.user
+			,r.insight
+		) r
+	GROUP BY r.user
+	) r;
+
+
+elsif relation_type = 'NULO' then
+
+RETURN query
+
+SELECT cast(uuid_generate_v4() AS VARCHAR) AS id
+	,cast('INSIGHT' as varchar) AS type
+	,to_json(r.data)
+FROM (
+	SELECT r.user || jsonb_build_object('insight', array_agg(r.data)) AS data
+	FROM (
+		SELECT r.user
+			,r.insight || jsonb_build_object('nested', array_agg(r.slave)) AS data
+		FROM (
+			SELECT to_jsonb(h.data) || jsonb_build_object('relation', r.relation) || jsonb_build_object('profile_image', jsonb(g.data)) AS user
+				,jsonb_build_object('type', i.type) || jsonb(i.data) AS insight
+				,jsonb_build_object('type', f.type) || jsonb(f.data) AS slave
+			FROM (
+				(
+					SELECT *
+					FROM (
+						SELECT u.to_id
+							,'FOLLOWING' AS relation
+						FROM PUBLIC.userrelation u
+						WHERE u.type = 'FOLLOWER'
+							AND u.from_id = user_id
+						) a
+					
+					EXCEPT
+					
+					(
+						SELECT u.to_id
+							,'FOLLOWING'
+						FROM PUBLIC.userrelation u
+						WHERE u.type = 'PARTNER'
+							AND u.from_id = user_id
+						)
+					
+					EXCEPT
+					
+					(
+						SELECT u.from_id
+							,'FOLLOWING'
+						FROM PUBLIC.userrelation u
+						WHERE u.type = 'MENTOR'
+							AND u.to_id = user_id
+						) limit coalesce(itens_by_page, 5) offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+					)
+				
+				UNION ALL
+				
+				(
+					SELECT *
+					FROM (
+						SELECT u.to_id
+							,'PARTNER'
+						FROM PUBLIC.userrelation u
+						WHERE u.type = 'PARTNER'
+							AND u.from_id = user_id
+						) a
+					
+					EXCEPT
+					
+					(
+						SELECT u.from_id
+							,'PARTNER'
+						FROM PUBLIC.userrelation u
+						WHERE u.type = 'MENTOR'
+							AND u.to_id = user_id
+						) limit coalesce(itens_by_page, 5) offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+					)
+				
+				UNION ALL
+				
+				(
+					SELECT *
+					FROM (
+						SELECT u.from_id
+							,'MENTOR'
+						FROM PUBLIC.userrelation u
+						WHERE u.type = 'MENTOR'
+							AND u.to_id = user_id
+						) a limit coalesce(itens_by_page, 5) offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+					)
+				) r
+			CROSS JOIN lateral findresourcebyowner(r.to_id) AS i
+			CROSS JOIN lateral findresourcebyowner(cast(i.data ->> 'id' AS VARCHAR)) AS f
+			LEFT JOIN lateral findresourcebyowner(r.to_id) AS g ON true
+			CROSS JOIN lateral findresourcedata(r.to_id) AS h
+			WHERE i.type = 'INSIGHT'
+				AND g.type = 'PROFILE_IMAGE'
+			) r
+		GROUP BY r.user
+			,r.insight
+		) r
+	GROUP BY r.user
+	) r;
+	
+	end IF ;
+  
+ 
+--loop
+		--RETURN NEXT resource_t;
+	
+   --END LOOP;
   
   	
    RETURN;
@@ -1678,6 +2217,74 @@ END;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.findmyposts(user_id character varying, itens_by_page integer, page integer)
+ RETURNS SETOF mynejsontype
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.mynejsontype%ROWTYPE;
+BEGIN
+
+ 	FOR resource_t in
+ 	
+select cast(uuid_generate_v4() as varchar) as id, cast('POST' as varchar) as "type",
+	p.post_data || jsonb_build_object('nested', array_agg(p.post_resource)) || p.user_data as data
+from
+	(
+	select
+		jsonb_build_object('type', 'POST', 'id', pd.id, 'createDate', pd.createdate, 'description', pd.description, 'releaseDate', pd.releasedate, 'title', pd.title, 'canComment', pd.cancomment) as post_data,
+		jsonb_build_object('type', pr.type) || jsonb(pr.data) as post_resource,
+		jsonb_build_object('user', jsonb_build_object('profile_image', jsonb_build_object('type', ur.type) || jsonb(ur.data)) || 
+jsonb_build_object('user', jsonb_build_object('type', ud.type) || jsonb(ud.data))) as user_data
+	from
+		(
+		select
+			u.id as user_id,
+			o.slave as mri_id_slave,
+			mr.createdate,
+			replace(mr.mri, 'mri::', '') as post_id,
+			mr.type as slaves_type
+		from
+			(select user_id as id) u
+		left join myneresourceinformation m on
+			replace(m.mri, 'mri::', '') = u.id
+		left join ownerresources o on
+			m.id = o."owner"
+		left join myneresourceinformation mr on
+			mr.id = o.slave
+		where
+			(o."type" = 'USER_POST' )
+		order by
+			mr.createdate desc,
+			mr.id asc
+		limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5)) u
+	left join post as pd on pd.id = u.post_id
+	left join lateral findresourcedata(u.user_id) as ud on
+		true
+	left join lateral findresourcebyowner(u.post_id) as pr on
+		true
+	left join lateral findresourcebyownerandtype(u.user_id,
+		'PROFILE_IMAGE') as ur on
+		true)
+p
+group by
+	p.post_data,
+	p.user_data
+
+loop
+		RETURN NEXT resource_t;
+	
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.findmyproducts(user_id character varying, type_ character varying)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
@@ -1704,7 +2311,7 @@ FROM (
 			LEFT JOIN lateral findresourcebyowner(cast(f.data ->> 'id' AS VARCHAR)) AS s ON true
 			LEFT JOIN lateral findresourcedata(user_id) AS u ON true
 			WHERE f.type = 'PRODUCT'
-				AND cast(f.data ->> 'productType' AS VARCHAR) = coalesce(type_, cast(f.data ->> 'productType' AS VARCHAR))
+				AND cast(f.data ->> 'productType' AS VARCHAR) = coalesce(nullif(type_,'NULO'), cast(f.data ->> 'productType' AS VARCHAR))
 			) p
 		GROUP BY p.user
 			,p.product_data
@@ -1776,6 +2383,57 @@ left join myneresourceinformation mr on o.owner=mr.id
 group by  m.mri, mr.mri, m.type) m
 cross join lateral public.findresourcebyowner(m.owner) as f
 where m.owner notnull and m.mri = replace(resource,'mri::','') --and f.owner = m.owner
+ 
+loop
+		RETURN NEXT resource_t;
+	
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.findprofilebyslug(slug_ character varying, type_ character varying, itens_by_page integer, page integer)
+ RETURNS SETOF mynejsontype
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.mynejsontype%ROWTYPE;
+     user_id character varying;
+begin
+	
+user_id := (select u.id from myneuser u where u.slug = slug_);
+   
+
+
+ 	FOR resource_t in
+
+ 	
+select cast(uuid_generate_v4() as varchar) as id, r.type, to_json(r.data || jsonb_build_object('nested', array_agg(r.nested))) as data from
+(select m.type, m.createdate, jsonb_build_object('type', f.type) || jsonb(f.data) as data, jsonb_build_object('type', r.type) || jsonb(r.data) as nested from 
+(
+select replace(m.mri,'mri::','') as mri, replace(mr.mri,'mri::','') as owner, m.type, m.createdate from public.myneresourceinformation m 
+left join ownerresources o on o.slave = m.id
+left join myneresourceinformation mr on o.owner=mr.id
+where
+ m."type" = coalesce(nullif(type_,'NULO'), m."type")
+ and m."type" in ('POST', 'INSIGHT', 'PURCHASE', 'PROFILE_IMAGE')
+and replace(mr.mri,'mri::','') = user_id
+group by  m.mri, mr.mri, m.type, m.createdate
+order by m.createdate desc
+limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+) m
+cross join lateral public.findresourcedata(m.mri) as f
+left join lateral public.findresourcebyowner(m.mri) as r on true
+where m.owner notnull and m.owner = replace(user_id,'mri::','') and f.owner = m.owner) r
+group by r.data, r.type, r.createdate
+order by r.createdate desc
+
  
 loop
 		RETURN NEXT resource_t;
@@ -1913,26 +2571,34 @@ mri_id := replace(resource,'mri::','');
    where RIGHT(m.mri,36) = mri_id limit 1) as type,  uuid_generate_v4() as id, r.* from 
 (select
 (case when (mri_type) = 'USER'
-   then (select row_to_json(u) from (select u.id, u.accountname as "accountName", u.active, u.createdate, u.devicetoken, u.email, u.name, u.slug, u.usertype, u.visibility from public.myneuser u where u.id= mri_id) u)
+   then (select row_to_json(u) from (select u.id, u.accountname as "accountName", u.active, u.createdate as "createDate", u.devicetoken, u.email, u.name, u.slug, u.usertype as "userType", u.visibility from public.myneuser u where u.id= mri_id) u)
    when (mri_type) = 'POST'
-    then (select row_to_json(p) from (select p.id, p.createdate as "createDate", p.description, p.title, p.cancomment as "canComment" from public.post p where p.id= mri_id order by p.createdate desc) p)
+    then (select row_to_json(p) from (select p.id, p.createdate as "createDate", p.description, p.title, p.cancomment as "canComment", p.releasedate as "releaseDate" from public.post p where p.id= mri_id order by p.createdate desc) p)
+     when (mri_type) = 'LAUNCH'
+   then (select row_to_json(l) from  (select l.id, l.createdate as "createDate", l.description, l.launchtype as "launchType", l."name", l.releasedate as "releaseDate" from public.launch l where l.id= mri_id) l)
+      when (mri_type) = 'MODULE'
+   then (select row_to_json(m) from  (select m.id, m.name, m.active, m.createdate as "createDate", m.description, cast(m.details as json) as "details" from public."module" m where m.id= mri_id) m)
      when (mri_type) = 'SITE'
    then (select row_to_json(s) from  (select * from public.site s where s.id= mri_id) s)
    when (mri_type) = 'PHONE'
    then (select row_to_json(p) from (select * from public.phone p where p.id= mri_id) p)
     when (mri_type) = 'ACCOUNTABILITY' 
    then (select row_to_json(a) from (select * from public.accountability a where a.id= mri_id) a)
+   when (mri_type) = 'LAUNCHWORKFLOW' 
+   then (select row_to_json(l) from (select l.id, l.startdate as "startDate", l.enddate as "endDate", l.phase from public.launchworkflow l where l.id= mri_id) l)
    when (mri_type) = 'INSIGHT'
-   then (select row_to_json(i) from (select * from public.insight i where i.id= mri_id) i)
+   then (select row_to_json(i) from (select i.id, i.active, i.createdate as "createDate", i.insighttype as "insightType", i.url, i.releasedate as "releaseDate" from public.insight i where i.id= mri_id) i)
    when (mri_type) = 'PRICE'
-   then (select row_to_json(p) from (select * from public.price p where p.id= mri_id) p)
+   then (select row_to_json(p) from (select p.id, p.active, p.discount, p.price, p.createdate as "createDate" from public.price p where p.id= mri_id) p)
     when (mri_type) = 'COMMENT' 
    then (select row_to_json(c) from (select c.id, c.createdate as "createDate", c.text from public.comment c  where c.id = mri_id) c)
    when (mri_type) = 'PRODUCT' 
-   then (select row_to_json(p) from (select p.id, p.active, p.createdate as "createDate", p.description, p.name, p.producttype as "productType", cast(p.details as json) from public.product p  where p.id = mri_id) p)
+   then (select row_to_json(p) from (select p.id, p.active, p.createdate as "createDate", p.releasedate as "releaseDate", p.description, p.name, p.producttype as "productType", cast(p.details as json) from public.product p  where p.id = mri_id) p)
+    when (mri_type) = 'PURCHASE' 
+   then (select row_to_json(p) from (select p.id, p.product_id, p.launch_id, p.createdate as "createDate", p.value from public.purchase p  where p.id = mri_id) p)
    when (mri_type) = 'ADDRESS'
    then (select row_to_json(a) from (select * from public.address a where a.id= mri_id) a)
-   else (select row_to_json(s) from (select s.id, s.createdate as "createDate", s.description, s.filename as "fileName", s.filetype as "fileType", s.s3url, s.solicitacaoid from public.s3file s where s.id= mri_id) s)
+   else (select row_to_json(s) from (select s.id, s.createdate as "createDate", s.description, s.filename as "fileName", s.filetype as "fileType", s.s3url, s.solicitacaoid, s.order_ from public.s3file s where s.id= mri_id) s)
    end) as resourcedata) r,
   (select replace(m.mri,'mri::','') as mri, replace(mr.mri,'mri::','') as owner, m.type from public.myneresourceinformation m 
 left join ownerresources o on o.slave = m.id
@@ -2905,62 +3571,111 @@ AS $function$
 BEGIN
 
  	FOR resource_t in
- 	
-select * from 
-(
-select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json( r.data) as data from 
-(select jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
+ select
+	*
 from
-(select r.owner,  array_agg(ro.data), r.data_post, r.data as data_slave from
-(select r.owner, r.data_post, jsonb_build_object('nested', array_agg(r.data_slave)) as data from
-(select rd.owner, jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
-jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave from
-(select replace(m.mri,'mri::','') as resource_id 
-from myneresourceinformation m
-where 
- m.type = 'POST'
- order by random()
-limit coalesce(itens_by_page, 5)
+	(
+	select
+		cast(uuid_generate_v4() as varchar) as id,
+		cast('RESEARCH' as varchar) as type,
+		to_json(r.data) as data
+	from
+		(
+		select
+			jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
+		from
+			(
+			select
+				r.owner,
+				array_agg(ro.data),
+				r.data_post,
+				r.data as data_slave
+			from
+				(
+				select
+					r.owner,
+					r.data_post,
+					jsonb_build_object('nested', array_agg(r.data_slave)) as data
+				from
+					(
+					select
+						rd.owner,
+						jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
+						jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave
+					from
+						(
+						select
+							replace(m.mri, 'mri::', '') as resource_id
+						from
+							myneresourceinformation m
+						where
+							m.type = 'POST'
+						order by
+							random()
+						limit coalesce(itens_by_page, 5)
 offset coalesce(page, 0) * coalesce(itens_by_page, 5)
 ) m
-cross join lateral findresourcedata(m.resource_id) as rd
-cross join lateral findresourcebyowner(m.resource_id) as ro) r 
-group by r.owner, r.data_post) r
-left join lateral findresourcebyowner(r.owner) ro on true
-where ro.type = 'PROFILE_IMAGE' or ro.type isnull
-group by r.owner, r.data_post, r.data) r 
-cross join lateral findresourcedata(r.owner) as ro) r
-group by r.data
-
+					cross join lateral findresourcedata(m.resource_id) as rd
+					cross join lateral findresourcebyowner(m.resource_id) as ro) r
+				group by
+					r.owner,
+					r.data_post) r
+			left join lateral findresourcebyowner(r.owner) ro on
+				true
+			where
+				ro.type = 'PROFILE_IMAGE'
+				or ro.type isnull
+			group by
+				r.owner,
+				r.data_post,
+				r.data) r
+		cross join lateral findresourcedata(r.owner) as ro) r
+	group by
+		r.data
 union all
-
-select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json(r.data) as data from
-(select jsonb_build_object('type', rd.type) || jsonb(rd.data)|| jsonb_build_object('profile_image', ro.data) as data from
-(select replace(m.mri,'mri::','') as resource_id 
-from myneresourceinformation m
-where 
- m.type = 'USER'
- order by random()
-limit coalesce(
+	select
+		cast(uuid_generate_v4() as varchar) as id,
+		cast('RESEARCH' as varchar) as type,
+		to_json(r.data) as data
+	from
+		(
+		select
+			jsonb_build_object('type', rd.type) || jsonb(rd.data)|| jsonb_build_object('profile_image', ro.data) as data
+		from
+			(
+			select
+				replace(m.mri, 'mri::', '') as resource_id
+			from
+				myneresourceinformation m
+			where
+				m.type = 'USER'
+			order by
+				random()
+			limit coalesce(
 ceil( 
 itens_by_page *
-(cast( (select count(*) from myneresourceinformation m where m."type" ='USER') as float)/
-cast( (select count(*) from myneresourceinformation m where m."type" ='POST') as float)))
+(cast( (select count(*) from myneresourceinformation m where m."type" = 'USER') as float)/
+cast( (select count(*) from myneresourceinformation m where m."type" = 'POST') as float)))
 , 5)
 offset coalesce(page, 0) * coalesce(
 ceil( 
 itens_by_page *
-(cast( (select count(*) from myneresourceinformation m where m."type" ='USER') as float)/
-cast( (select count(*) from myneresourceinformation m where m."type" ='POST') as float)))
+(cast( (select count(*) from myneresourceinformation m where m."type" = 'USER') as float)/
+cast( (select count(*) from myneresourceinformation m where m."type" = 'POST') as float)))
 , 5)
 ) m
-cross join lateral findresourcedata(m.resource_id) as rd
-LEFT   JOIN LATERAL findresourcebyowner(m.resource_id) ro ON true
-where ro.type isnull or ro.type = 'PROFILE_IMAGE'
+		cross join lateral findresourcedata(m.resource_id) as rd
+		left join lateral findresourcebyowner(m.resource_id) ro on
+			true
+		where
+			ro.type isnull
+			or ro.type = 'PROFILE_IMAGE'
 ) r
-group by r.data
+	group by
+		r.data
 ) r
-order by random()
+order by
+	random()
 
 
 loop
@@ -2973,25 +3688,6 @@ loop
 
 END;
 
-$function$
-;
-
-CREATE OR REPLACE FUNCTION public.password_recovery(user_email character varying)
- RETURNS character varying
- LANGUAGE plpgsql
-AS $function$
-declare
-   password_key varchar;
-begin
-	
-
-
-SELECT (case when u.password = 'PROVIDED BY OAUTH' then 'Your password could not be recovered.' else u.password end)
-FROM myneuser u WHERE u.email = user_email
-into password_key;
-
-   return password_key;
-end;
 $function$
 ;
 
@@ -3565,6 +4261,37 @@ where replace(m.mri, 'mri::', '') = p.id and concat(p.name,' ', p.producttype) =
 except
 select r.resource, r.tag from resourcetag r) a;
 
+
+insert into "global".research(id, createdate, type, tag, ts_vector, releasedate, owner, research_data)
+select u.id, u.createdate, u.type, u.tag, u.ts_vector, u.releasedate, u.owner, u.data
+from
+(select cast(r.data ->> 'id' as varchar) as id,  cast(r.data ->> 'createDate' as timestamp with time zone) as createdate,
+'PRODUCT' as "type", concat(cast(r.data ->> 'name' as varchar), ' ', cast(r.data ->> 'productType' as varchar)) as tag,
+to_tsvector(concat(cast(r.data ->> 'name' as varchar), ' ', cast(r.data ->> 'productType' as varchar))) as ts_vector,
+cast(r.data ->> 'releaseDate' as timestamp with time zone) as releasedate, f.owner,
+to_json( r.data) as data from 
+(select jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
+from
+(select r.owner,  array_agg(ro.data), r.data_post, r.data as data_slave from
+(select r.owner, r.data_post, jsonb_build_object('nested', array_agg(r.data_slave)) as data from
+(select rd.owner, jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
+jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave from
+(select replace(m.mri, 'mri::', '') as resource_id from myneresourceinformation m where m.type = 'PRODUCT'
+and replace(m.mri, 'mri::', '') not in ('58df74af-f105-489b-9ae0-3479c909ed80')
+except
+select r.id from global.research r where r.type = 'PRODUCT') m
+cross join lateral findresourcedata(m.resource_id) as rd
+cross join lateral findresourcebyowner(m.resource_id) as ro) r 
+group by r.owner, r.data_post) r
+left join lateral findresourcebyowner(r.owner) ro on true
+where ro.type = 'PROFILE_IMAGE' or ro.type isnull
+group by r.owner, r.data_post, r.data) r 
+cross join lateral findresourcedata(r.owner) as ro) r
+left join findresourcedata(cast(r.data ->> 'id' as varchar)) as f on true
+left join myneresourceinformation m on f.owner = replace(m.mri, 'mri::', '')
+where m.type = 'USER' ) u;
+
+
 RETURN NEW;
 
 END;
@@ -3594,6 +4321,30 @@ where replace(m.mri, 'mri::', '') = u.id and concat(u.accountname,' ', u."name")
 except
 select r.resource, r.tag from resourcetag r) a;
 
+insert into "global".research(id, createdate, type, tag, ts_vector, releasedate, owner, research_data)
+select u.id, u.createdate, u.type, u.tag, u.ts_vector, u.releasedate, u.owner, u.data
+from
+(
+select cast(r.data ->> 'id' as varchar) as id,  cast(r.data ->> 'createDate' as timestamp with time zone) as createdate,
+ cast('USER' as varchar) as type, concat(cast(r.data ->> 'name' as varchar), ' ', cast(r.data ->> 'accountName' as varchar)) as tag,
+to_tsvector(concat(cast(r.data ->> 'name' as varchar), ' ', cast(r.data ->> 'accountName' as varchar))) as ts_vector,
+now() as releasedate, '' as owner,
+to_json(r.data) as data from
+(select jsonb_build_object('type', rd.type) || jsonb(rd.data)|| jsonb_build_object('profile_image', ro.data) as data from
+(select replace(m.mri, 'mri::', '') as resource_id from myneresourceinformation m where m.type = 'USER'
+and replace(m.mri, 'mri::', '') not in 
+('6d5cb104-36a0-4f50-b8fb-0d8b905a78b3',
+'c74f1e72-e674-4f44-ba37-d625c8d49e0f',
+'7c875a39-66fd-434f-ac8c-6fe0c32669f7',
+'7a217f2b-7fcd-46b0-91e7-aa88c4b36f1c',
+'daf0efb2-c29a-4b10-a756-87343477f5bf')
+except
+select r.id from global.research r where r.type = 'USER') m
+cross join lateral findresourcedata(m.resource_id) as rd
+LEFT   JOIN LATERAL findresourcebyowner(m.resource_id) ro ON true
+where ro.type isnull or ro.type = 'PROFILE_IMAGE') r 
+) u;
+
 RETURN NEW;
 
 END;
@@ -3618,14 +4369,14 @@ end;
 $function$
 ;
 
-CREATE OR REPLACE FUNCTION public.unaccent(text)
+CREATE OR REPLACE FUNCTION public.unaccent(regdictionary, text)
  RETURNS text
  LANGUAGE c
  STABLE PARALLEL SAFE STRICT
 AS '$libdir/unaccent', $function$unaccent_dict$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.unaccent(regdictionary, text)
+CREATE OR REPLACE FUNCTION public.unaccent(text)
  RETURNS text
  LANGUAGE c
  STABLE PARALLEL SAFE STRICT
@@ -3694,6 +4445,10 @@ select o.id, slugify(o.name) as name,  ROW_NUMBER() OVER(ORDER BY o.id) AS RowNu
 from public.myneuser o  where o.slug isnull
 ) o) o
 where o.id1=id;
+
+update myneuser set accountname = translate(slug,'-','') from
+(select id as id1 from myneuser where accountname isnull) a
+where a.id1=id;
 
 
 
