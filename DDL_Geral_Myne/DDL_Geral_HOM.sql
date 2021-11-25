@@ -13,14 +13,6 @@ CREATE TYPE gtrgm (
 	DELIMITER = ',');
 -- public."_exec" definition
 
--- Drop table
-
--- DROP TABLE public."_exec";
-
-CREATE TABLE public."_exec" (
-	"_" text NULL
-);
-
 
 -- Agregate tsvector
 
@@ -29,6 +21,15 @@ CREATE AGGREGATE tsvector_agg(tsvector) (
    SFUNC = pg_catalog.tsvector_concat,
    INITCOND = ''
 );
+
+-- Drop table
+
+-- DROP TABLE public."_exec";
+
+CREATE TABLE public."_exec" (
+	"_" text NULL
+);
+
 
 -- public.address definition
 
@@ -187,6 +188,15 @@ CREATE TABLE public.insight (
 	CONSTRAINT insight_pkey PRIMARY KEY (id)
 );
 
+-- Table Triggers
+
+create trigger insertinsight after
+insert
+    or
+delete
+    on
+    public.insight for each row execute function insightinsert();
+
 
 -- public.launch definition
 
@@ -300,6 +310,7 @@ CREATE TABLE public.myneuser (
 	usertype varchar(32) NOT NULL DEFAULT 'USER'::character varying,
 	visibility varchar(32) NOT NULL DEFAULT 'PUBLIC'::character varying,
 	"method" varchar NULL DEFAULT 'Myne'::character varying,
+	biography varchar(10240) NULL,
 	CONSTRAINT myneuser_pkey PRIMARY KEY (id),
 	CONSTRAINT myneuser_un UNIQUE (email),
 	CONSTRAINT uk_78xrwtd24kvmcjhsc006sjivr UNIQUE (slug)
@@ -398,6 +409,13 @@ CREATE TABLE public.product (
 	releasedate timestamptz NOT NULL DEFAULT now(),
 	CONSTRAINT product_pkey PRIMARY KEY (id)
 );
+
+-- Table Triggers
+
+create trigger insertproducttag after
+insert
+    on
+    public.product for each row execute function tagproductinsert();
 
 
 -- public.productdetail definition
@@ -594,6 +612,7 @@ CREATE TABLE public.messagenotification (
 	receiverid varchar(36) NOT NULL,
 	senderid varchar(36) NOT NULL,
 	link varchar(10240) NULL,
+	createdate timestamptz NOT NULL,
 	CONSTRAINT messagenotification_pkey PRIMARY KEY (id),
 	CONSTRAINT fk5liknp4huj0bry2tbf81v47k1 FOREIGN KEY (senderid) REFERENCES public.myneuser(id),
 	CONSTRAINT fkbujicj06wbwl43xkwraffia2j FOREIGN KEY (receiverid) REFERENCES public.myneuser(id)
@@ -1118,7 +1137,7 @@ CREATE OR REPLACE FUNCTION public.dblink_is_busy(text)
 AS '$libdir/dblink', $function$dblink_is_busy$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_open(text, text, boolean)
+CREATE OR REPLACE FUNCTION public.dblink_open(text, text, text, boolean)
  RETURNS text
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
@@ -1132,14 +1151,14 @@ CREATE OR REPLACE FUNCTION public.dblink_open(text, text)
 AS '$libdir/dblink', $function$dblink_open$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_open(text, text, text)
+CREATE OR REPLACE FUNCTION public.dblink_open(text, text, boolean)
  RETURNS text
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
 AS '$libdir/dblink', $function$dblink_open$function$
 ;
 
-CREATE OR REPLACE FUNCTION public.dblink_open(text, text, text, boolean)
+CREATE OR REPLACE FUNCTION public.dblink_open(text, text, text)
  RETURNS text
  LANGUAGE c
  PARALLEL RESTRICTED STRICT
@@ -1501,8 +1520,8 @@ from
 	select
 		jsonb_build_object('type', 'POST', 'id', pd.id, 'createDate', pd.createdate, 'description', pd.description, 'releaseDate', pd.releasedate, 'title', pd.title, 'canComment', pd.cancomment) as post_data,
 		jsonb_build_object('type', pr.type) || jsonb(pr.data) as post_resource,
-		jsonb_build_object('user', jsonb_build_object('user', jsonb_build_object('type', ur.type) || jsonb(ur.data)) || 
-jsonb_build_object('profile_image', jsonb_build_object('type', ud.type) || jsonb(ud.data))) as user_data
+		jsonb_build_object('user', jsonb_build_object('user', jsonb_build_object('type', ud.type) || jsonb(ud.data)) || 
+jsonb_build_object('profile_image', jsonb_build_object('type', ur.type) || jsonb(ur.data))) as user_data
 	from
 		(
 		select
@@ -1735,21 +1754,13 @@ BEGIN
 IF relation_type = 'FOLLOWING' then
 	RETURN query
 
-SELECT cast(uuid_generate_v4() AS VARCHAR) AS id
-	,cast('INSIGHT' as varchar) AS type
-	,to_json(r.data)
-FROM (
-	SELECT r.user || jsonb_build_object('insight', array_agg(r.data)) AS data
-	FROM (
-		SELECT r.user
-			,r.insight || jsonb_build_object('nested', array_agg(r.slave)) AS data
-		FROM (
-			SELECT to_jsonb(h.data) || jsonb_build_object('relation', r.relation) || jsonb_build_object('profile_image', jsonb(g.data)) AS user
-				,jsonb_build_object('type', i.type) || jsonb(i.data) AS insight
-				,jsonb_build_object('type', f.type) || jsonb(f.data) AS slave
-			FROM (
-				
-					SELECT *
+select cast(uuid_generate_v4() as varchar) as id, cast('INSIGHT' as varchar), to_json(i.data)  as "data" from
+(select i.userid as userid, max(i.releasedate) as releasedate, jsonb_build_object('insight', array_agg(i.insight_data)) || i.user_data as "data" from
+global.insights i
+where i.userid in
+(
+				select a.to_id from
+					(SELECT *
 					FROM (
 						SELECT u.to_id
 							,'FOLLOWER' AS relation
@@ -1776,40 +1787,23 @@ FROM (
 						FROM PUBLIC.userrelation u
 						WHERE u.type = 'MENTOR'
 							AND u.to_id = user_id
-						) limit coalesce(itens_by_page, 5) offset coalesce(page, 0) * coalesce(itens_by_page, 5)
-				) r
-			CROSS JOIN lateral findresourcebyowner(r.to_id) AS i
-			CROSS JOIN lateral findresourcebyowner(cast(i.data ->> 'id' AS VARCHAR)) AS f
-			LEFT JOIN lateral findresourcebyowner(r.to_id) AS g ON true
-			CROSS JOIN lateral findresourcedata(r.to_id) AS h
-			WHERE i.type = 'INSIGHT'
-				AND g.type = 'PROFILE_IMAGE'
-			) r
-		GROUP BY r.user
-			,r.insight
-		) r
-	GROUP BY r.user
-	) r;
+						)) a
+				)
+group by
+i.user_data, i.userid) i
+order by i.releasedate desc;
 
 elsif relation_type = 'PARTNER' then
 
 RETURN query
 
-SELECT cast(uuid_generate_v4() AS VARCHAR) AS id
-	,cast('INSIGHT' as varchar) AS type
-	,to_json(r.data)
-FROM (
-	SELECT r.user || jsonb_build_object('insight', array_agg(r.data)) AS data
-	FROM (
-		SELECT r.user
-			,r.insight || jsonb_build_object('nested', array_agg(r.slave)) AS data
-		FROM (
-			SELECT to_jsonb(h.data) || jsonb_build_object('relation', r.relation) || jsonb_build_object('profile_image', jsonb(g.data)) AS user
-				,jsonb_build_object('type', i.type) || jsonb(i.data) AS insight
-				,jsonb_build_object('type', f.type) || jsonb(f.data) AS slave
-			FROM (
-				
-				(
+select cast(uuid_generate_v4() as varchar) as id, cast('INSIGHT' as varchar), to_json(i.data)  as "data" from
+(select i.userid as userid, max(i.releasedate) as releasedate, jsonb_build_object('insight', array_agg(i.insight_data)) || i.user_data as "data" from
+global.insights i
+where i.userid in
+(
+				select a.to_id from
+					(
 					SELECT *
 					FROM (
 						SELECT u.to_id
@@ -1827,41 +1821,24 @@ FROM (
 						FROM PUBLIC.userrelation u
 						WHERE u.type = 'MENTOR'
 							AND u.to_id = user_id
-						) limit coalesce(itens_by_page, 5) offset coalesce(page, 0) * coalesce(itens_by_page, 5)
-					)
-				
-				
-				) r
-			CROSS JOIN lateral findresourcebyowner(r.to_id) AS i
-			CROSS JOIN lateral findresourcebyowner(cast(i.data ->> 'id' AS VARCHAR)) AS f
-			LEFT JOIN lateral findresourcebyowner(r.to_id) AS g ON true
-			CROSS JOIN lateral findresourcedata(r.to_id) AS h
-			WHERE i.type = 'INSIGHT'
-				AND g.type = 'PROFILE_IMAGE'
-			) r
-		GROUP BY r.user
-			,r.insight
-		) r
-	GROUP BY r.user
-	) r;
+						) 
+					) a
+				)
+group by
+i.user_data, i.userid) i
+order by i.releasedate desc;
 
 elsif relation_type = 'MENTOR' then
 
 RETURN query
 
-SELECT cast(uuid_generate_v4() AS VARCHAR) AS id
-	,cast('INSIGHT' as varchar) AS type
-	,to_json(r.data)
-FROM (
-	SELECT r.user || jsonb_build_object('insight', array_agg(r.data)) AS data
-	FROM (
-		SELECT r.user
-			,r.insight || jsonb_build_object('nested', array_agg(r.slave)) AS data
-		FROM (
-			SELECT to_jsonb(h.data) || jsonb_build_object('relation', r.relation) || jsonb_build_object('profile_image', jsonb(g.data)) AS user
-				,jsonb_build_object('type', i.type) || jsonb(i.data) AS insight
-				,jsonb_build_object('type', f.type) || jsonb(f.data) AS slave
-			FROM (
+select cast(uuid_generate_v4() as varchar) as id, cast('INSIGHT' as varchar), to_json(i.data)  as "data" from
+(select i.userid as userid, max(i.releasedate) as releasedate, jsonb_build_object('insight', array_agg(i.insight_data)) || i.user_data as "data" from
+global.insights i
+where i.userid in
+(
+				select a.to_id from
+					(
 				
 				
 				
@@ -1872,45 +1849,67 @@ FROM (
 						FROM PUBLIC.userrelation u
 						WHERE u.type = 'MENTOR'
 							AND u.to_id = user_id
-						) a limit coalesce(itens_by_page, 5) offset coalesce(page, 0) * coalesce(itens_by_page, 5)
+						) a 
 					
-				) r
-			CROSS JOIN lateral findresourcebyowner(r.to_id) AS i
-			CROSS JOIN lateral findresourcebyowner(cast(i.data ->> 'id' AS VARCHAR)) AS f
-			LEFT JOIN lateral findresourcebyowner(r.to_id) AS g ON true
-			CROSS JOIN lateral findresourcedata(r.to_id) AS h
-			WHERE i.type = 'INSIGHT'
-				AND g.type = 'PROFILE_IMAGE'
-			) r
-		GROUP BY r.user
-			,r.insight
-		) r
-	GROUP BY r.user
-	) r;
+				) a
+				)
+group by
+i.user_data, i.userid) i
+order by i.releasedate desc;
 
 
 elsif relation_type = 'NULO' then
 
 RETURN query
 
-SELECT cast(uuid_generate_v4() AS VARCHAR) AS id
-	,cast('INSIGHT' as varchar) AS type
-	,to_json(r.data)
-FROM (
-	SELECT r.user || jsonb_build_object('insight', array_agg(r.data)) AS data
-	FROM (
-		SELECT r.user
-			,r.insight || jsonb_build_object('nested', array_agg(r.slave)) AS data
-		FROM (
-			SELECT to_jsonb(h.data) || jsonb_build_object('relation', r.relation) || jsonb_build_object('profile_image', jsonb(g.data)) AS user
-				,jsonb_build_object('type', i.type) || jsonb(i.data) AS insight
-				,jsonb_build_object('type', f.type) || jsonb(f.data) AS slave
-			FROM (
-				(
-					SELECT *
+select cast(uuid_generate_v4() as varchar) as id, cast('INSIGHT' as varchar), to_json(i.data)  as "data" from
+(select i.userid as userid, max(i.releasedate) as releasedate, jsonb_build_object('insight', array_agg(i.insight_data)) || i.user_data as "data" from
+global.insights i
+where i.userid != user_id
+group by
+i.user_data, i.userid) i
+order by random();
+	
+	end IF ;
+  
+ 
+--loop
+		--RETURN NEXT resource_t;
+	
+   --END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.findmyneinsights(user_id character varying, relation_type character varying, itens_by_page integer, page integer)
+ RETURNS SETOF mynejsontype
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.mynejsontype%ROWTYPE;
+BEGIN
+
+ 	--FOR resource_t in
+
+--WARNING! ERRORS ENCOUNTERED DURING SQL PARSING!
+IF relation_type = 'FOLLOWING' then
+	RETURN query
+
+select cast(uuid_generate_v4() as varchar) as id, cast('INSIGHT' as varchar), to_json(i.data)  as "data" from
+(select i.userid as userid, max(i.releasedate) as releasedate, jsonb_build_object('relation', 'FOLLOWING') || jsonb_build_object('insight', array_agg(i.insight_data)) || i.user_data as "data" from
+global.insights i
+where i.userid in
+(
+				select a.to_id from
+					(SELECT *
 					FROM (
 						SELECT u.to_id
-							,'FOLLOWING' AS relation
+							,'FOLLOWER' AS relation
 						FROM PUBLIC.userrelation u
 						WHERE u.type = 'FOLLOWER'
 							AND u.from_id = user_id
@@ -1920,7 +1919,7 @@ FROM (
 					
 					(
 						SELECT u.to_id
-							,'FOLLOWING'
+							,'FOLLOWER'
 						FROM PUBLIC.userrelation u
 						WHERE u.type = 'PARTNER'
 							AND u.from_id = user_id
@@ -1930,20 +1929,31 @@ FROM (
 					
 					(
 						SELECT u.from_id
-							,'FOLLOWING'
+							,'FOLLOWER'
 						FROM PUBLIC.userrelation u
-						WHERE u.type = 'MENTOR'
+						WHERE u.type = 'PUPIL'
 							AND u.to_id = user_id
-						) limit coalesce(itens_by_page, 5) offset coalesce(page, 0) * coalesce(itens_by_page, 5)
-					)
-				
-				UNION ALL
-				
-				(
+						)) a
+				)
+group by
+i.user_data, i.userid) i
+order by i.releasedate desc;
+
+elsif relation_type = 'PARTNER' then
+
+RETURN query
+
+select cast(uuid_generate_v4() as varchar) as id, cast('INSIGHT' as varchar), to_json(i.data)  as "data" from
+(select i.userid as userid, max(i.releasedate) as releasedate, jsonb_build_object('relation', 'PARTNER') || jsonb_build_object('insight', array_agg(i.insight_data)) || i.user_data as "data" from
+global.insights i
+where i.userid in
+(
+				select a.to_id from
+					(
 					SELECT *
 					FROM (
 						SELECT u.to_id
-							,'PARTNER'
+							,'PARTNER' as relation
 						FROM PUBLIC.userrelation u
 						WHERE u.type = 'PARTNER'
 							AND u.from_id = user_id
@@ -1955,36 +1965,56 @@ FROM (
 						SELECT u.from_id
 							,'PARTNER'
 						FROM PUBLIC.userrelation u
-						WHERE u.type = 'MENTOR'
+						WHERE u.type = 'PUPIL'
 							AND u.to_id = user_id
-						) limit coalesce(itens_by_page, 5) offset coalesce(page, 0) * coalesce(itens_by_page, 5)
-					)
+						) 
+					) a
+				)
+group by
+i.user_data, i.userid) i
+order by i.releasedate desc;
+
+elsif relation_type = 'MENTOR' then
+
+RETURN query
+
+select cast(uuid_generate_v4() as varchar) as id, cast('INSIGHT' as varchar), to_json(i.data)  as "data" from
+(select i.userid as userid, max(i.releasedate) as releasedate, jsonb_build_object('relation', 'MENTOR') || jsonb_build_object('insight', array_agg(i.insight_data)) || i.user_data as "data" from
+global.insights i
+where i.userid in
+(
+				select a.to_id from
+					(
 				
-				UNION ALL
 				
-				(
+				
 					SELECT *
 					FROM (
-						SELECT u.from_id
-							,'MENTOR'
+						SELECT u.from_id as to_id
+							,'MENTOR' as relation
 						FROM PUBLIC.userrelation u
-						WHERE u.type = 'MENTOR'
+						WHERE u.type = 'PUPIL'
 							AND u.to_id = user_id
-						) a limit coalesce(itens_by_page, 5) offset coalesce(page, 0) * coalesce(itens_by_page, 5)
-					)
-				) r
-			CROSS JOIN lateral findresourcebyowner(r.to_id) AS i
-			CROSS JOIN lateral findresourcebyowner(cast(i.data ->> 'id' AS VARCHAR)) AS f
-			LEFT JOIN lateral findresourcebyowner(r.to_id) AS g ON true
-			CROSS JOIN lateral findresourcedata(r.to_id) AS h
-			WHERE i.type = 'INSIGHT'
-				AND g.type = 'PROFILE_IMAGE'
-			) r
-		GROUP BY r.user
-			,r.insight
-		) r
-	GROUP BY r.user
-	) r;
+						) a 
+					
+				) a
+				)
+group by
+i.user_data, i.userid) i
+order by i.releasedate desc;
+
+
+elsif relation_type = 'NULO' then
+
+RETURN query
+
+select cast(uuid_generate_v4() as varchar) as id, cast('INSIGHT' as varchar), to_json(i.data) as "data" from
+(select i.userid as userid, max(i.releasedate) as releasedate, jsonb_build_object('relation', 'GLOBAL') || jsonb_build_object('insight', array_agg(i.insight_data)) || i.user_data as "data" from
+global.insights i
+where i.userid != user_id
+group by
+i.user_data, i.userid) i
+order by random();
 	
 	end IF ;
   
@@ -2261,7 +2291,8 @@ jsonb_build_object('user', jsonb_build_object('type', ud.type) || jsonb(ud.data)
 		left join myneresourceinformation mr on
 			mr.id = o.slave
 		where
-			(o."type" = 'USER_POST' )
+			(o."type" = 'USER_POST' and 
+			mr."type" = 'POST')
 		order by
 			mr.createdate desc,
 			mr.id asc
@@ -2579,7 +2610,7 @@ mri_id := replace(resource,'mri::','');
    where RIGHT(m.mri,36) = mri_id limit 1) as type,  uuid_generate_v4() as id, r.* from 
 (select
 (case when (mri_type) = 'USER'
-   then (select row_to_json(u) from (select u.id, u.accountname as "accountName", u.active, u.createdate as "createDate", u.devicetoken, u.email, u.name, u.slug, u.usertype as "userType", u.visibility from public.myneuser u where u.id= mri_id) u)
+   then (select row_to_json(u) from (select u.id, u.accountname as "accountName", u.active, u.createdate as "createDate", u.devicetoken, u.email, u.name, u.slug, u.usertype as "userType", u.visibility, u.biography from public.myneuser u where u.id= mri_id) u)
    when (mri_type) = 'POST'
     then (select row_to_json(p) from (select p.id, p.createdate as "createDate", p.description, p.title, p.cancomment as "canComment", p.releasedate as "releaseDate" from public.post p where p.id= mri_id order by p.createdate desc) p)
      when (mri_type) = 'LAUNCH'
@@ -2752,6 +2783,49 @@ return retorno;
 
 
 end;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.insightinsert()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+
+BEGIN
+
+INSERT INTO "global".insights (insight_id, userid, insight_data, releasedate, user_data, insert_date) 
+select i.insight_id, i.user_id, i.insight_data, i.releasedate, i.user_data, now() from
+(select i.insight_id, i.user_id, i.insight_data || i.insight_slave as insight_data, i.releasedate, i.user_data
+from
+(select i.insight_id, i.user_id, i.insight_data, i.releasedate,
+jsonb_build_object('nested', array_agg(i.insight_slave)) as insight_slave,
+i.user_data from
+(select m.mri as insight_id, cast(ud.data ->> 'id' as varchar) as "user_id",
+cast(id.data ->> 'releaseDate' as timestamp with time zone) as "releasedate",
+jsonb_build_object('type', id.type) || jsonb(id.data) as insight_data,
+jsonb_build_object('type', ir.type) || jsonb(ir.data) as insight_slave,
+jsonb_build_object('type', ud.type) || jsonb(ud.data) ||
+jsonb_build_object('profile_image', jsonb_build_object('type', ur.type) || jsonb(ur.data)) as user_data
+from
+(select distinct(i.id) as mri from insight i
+except
+select distinct(i.insight_id) from global.insights i) m
+left join lateral findresourcedata(m.mri) as id on true
+left join lateral findresourcebyowner(m.mri) as ir on true 
+left join findresourcedata(id.owner) as ud on true 
+left join lateral findresourcebyownerandtype(id.owner, 'PROFILE_IMAGE') as ur on true
+where id.data notnull  and ud.type = 'USER') i
+group by  i.insight_id, i.user_id, i.insight_data, i.user_data, i.releasedate) i ) i;
+
+delete from global.insights i where i.insight_id in
+(select distinct(i.insight_id) from global.insights i
+except 
+select i.id from public.insight i);
+
+RETURN NEW;
+
+END;
+
 $function$
 ;
 
@@ -3348,6 +3422,89 @@ END;
 $function$
 ;
 
+CREATE OR REPLACE FUNCTION public.myneresearch(research character varying, research_type character varying, itens_by_page integer, page integer)
+ RETURNS SETOF mynejsontype
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.mynejsontype%ROWTYPE;
+BEGIN
+
+
+IF research_type = 'POST' then
+	RETURN query
+	
+
+select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as "type",
+r.research_data from global.research r 
+where ((r.ts_vector @@
+to_tsquery('portuguese',(select replace(unaccent(trim(research)),' ',' | '))))
+or (similarity(r.tag, research)>0.1))
+and r."type" = 'POST' and  now() > r.releasedate 
+order by similarity(r.tag, research) desc
+limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5);
+
+
+
+elsif research_type = 'PRODUCT' then
+	RETURN query
+	
+select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as "type",
+r.research_data from global.research r 
+where ((r.ts_vector @@
+to_tsquery('portuguese',(select replace(unaccent(trim(research)),' ',' | '))))
+or (similarity(r.tag, research)>0.1)) 
+and r."type" = 'PRODUCT' and  now() > r.releasedate 
+order by similarity(r.tag, research) desc
+limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5);
+
+
+
+
+elsif research_type = 'USER' then
+
+RETURN query
+
+select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as "type",
+r.research_data from global.research r 
+where ((r.ts_vector @@
+to_tsquery('portuguese',(select replace(unaccent(trim(research)),' ',' | '))))
+or (similarity(r.tag, research)>0.1))
+and r."type" = 'USER' and  now() > r.releasedate 
+order by similarity(r.tag, research) desc
+limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5);
+
+
+elsif research_type = 'NULO' then
+
+RETURN query
+
+
+select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as "type",
+r.research_data from global.research r 
+where ((r.ts_vector @@
+to_tsquery('portuguese',(select replace(unaccent(trim(research)),' ',' | '))))
+or (similarity(r.tag, research)>0.1)) and  now() > r.releasedate 
+order by similarity(r.tag, research) desc
+limit coalesce(itens_by_page, 5)
+offset coalesce(page, 0) * coalesce(itens_by_page, 5);
+
+end IF ;
+  
+ 
+
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.myneresearch(research character varying, user_id character varying)
  RETURNS SETOF mynejsontype
  LANGUAGE plpgsql
@@ -3365,202 +3522,6 @@ loop
 		RETURN NEXT resource_t;
 	
    END LOOP;
-  
-  	
-   RETURN;
-
-END;
-
-$function$
-;
-
-CREATE OR REPLACE FUNCTION public.myneresearch(research character varying, research_type character varying, itens_by_page integer, page integer)
- RETURNS SETOF mynejsontype
- LANGUAGE plpgsql
-AS $function$
-   DECLARE
-      resource_t public.mynejsontype%ROWTYPE;
-BEGIN
-
-
-IF research_type = 'POST' then
-	RETURN query
-	
-select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json( r.data) as data  from 
-(select jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
-from
-(select r.owner,  array_agg(ro.data), r.data_post, r.data as data_slave from
-(select r.owner, r.data_post, jsonb_build_object('nested', array_agg(r.data_slave)) as data from
-(select rd.owner, jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
-jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave from
-(select replace(m.mri,'mri::','') as resource_id, 
-t.id, tsvector_agg(t.tag_tsv), similarity(lower(unaccent(STRING_AGG(t.tag, ' '))), lower(unaccent(research)))
-from tag t, myneresourceinformation m, resourcetag r 
-where 
- m.id = r.resource and r.tag = t.id and 
-t.tag_tsv @@
-to_tsquery('portuguese',(select replace(unaccent(trim(research)),' ',' | ')))
-and m.type = 'POST'
-group by t.id , m.mri
-order by similarity desc
-limit coalesce(itens_by_page, 5)
-offset coalesce(page, 0) * coalesce(itens_by_page, 5)
-) m
-cross join lateral findresourcedata(m.resource_id) as rd
-cross join lateral findresourcebyowner(m.resource_id) as ro) r 
-group by r.owner, r.data_post) r
-left join lateral findresourcebyowner(r.owner) ro on true
-where ro.type = 'PROFILE_IMAGE' or ro.type isnull
-group by r.owner, r.data_post, r.data) r 
-cross join lateral findresourcedata(r.owner) as ro) r;
-
-
-
-
-elsif research_type = 'PRODUCT' then
-	RETURN query
-	
-select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json( r.data) as data from 
-(select jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
-from
-(select r.owner,  array_agg(ro.data), r.data_post, r.data as data_slave from
-(select r.owner, r.data_post, jsonb_build_object('nested', array_agg(r.data_slave)) as data from
-(select rd.owner, jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
-jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave from
-(select replace(m.mri,'mri::','') as resource_id, 
-t.id, tsvector_agg(t.tag_tsv), similarity(lower(unaccent(STRING_AGG(t.tag, ' '))), lower(unaccent(research)))
-from tag t, myneresourceinformation m, resourcetag r 
-where 
- m.id = r.resource and r.tag = t.id and --m.type = :type and
-t.tag_tsv @@
-to_tsquery('portuguese',(select replace(unaccent(trim(research)),' ',' | ')))
-and m.type = 'PRODUCT'
-group by t.id , m.mri
-order by similarity desc
-limit coalesce(itens_by_page, 5)
-offset coalesce(page, 0) * coalesce(itens_by_page, 5)
-) m
-cross join lateral findresourcedata(m.resource_id) as rd
-cross join lateral findresourcebyowner(m.resource_id) as ro) r 
-group by r.owner, r.data_post) r
-left join lateral findresourcebyowner(r.owner) ro on true
-where ro.type = 'PROFILE_IMAGE' or ro.type isnull
-group by r.owner, r.data_post, r.data) r 
-cross join lateral findresourcedata(r.owner) as ro) r;
-
-
-
-
-elsif research_type = 'USER' then
-
-RETURN query
-
-select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json(r.data) as data from
-(select jsonb_build_object('type', rd.type) || jsonb(rd.data)|| jsonb_build_object('profile_image', ro.data) as data from
-(select replace(m.mri,'mri::','') as resource_id, 
-t.id, tsvector_agg(t.tag_tsv), similarity(lower(unaccent(STRING_AGG(t.tag, ' '))), lower(unaccent(research)))
-from tag t, myneresourceinformation m, resourcetag r 
-where 
- m.id = r.resource and r.tag = t.id and --m.type = :type and
-t.tag_tsv @@
-to_tsquery('portuguese',(select replace(unaccent(trim(research)),' ',' | ')))
-group by t.id , m.mri
-order by similarity desc
-limit coalesce(itens_by_page, 5)
-offset coalesce(page, 0) * coalesce(itens_by_page, 5)
-) m
-cross join lateral findresourcedata(m.resource_id) as rd
-LEFT   JOIN LATERAL findresourcebyowner(m.resource_id) ro ON true
-where ro.type isnull or ro.type = 'PROFILE_IMAGE') r;
-
-
-elsif research_type isnull then
-
-RETURN query
-
-
-select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json( r.data) as data from 
-(select jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
-from
-(select r.owner,  array_agg(ro.data), r.data_post, r.data as data_slave from
-(select r.owner, r.data_post, jsonb_build_object('nested', array_agg(r.data_slave)) as data from
-(select rd.owner, jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
-jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave from
-(select replace(m.mri,'mri::','') as resource_id, 
-t.id, tsvector_agg(t.tag_tsv), similarity(lower(unaccent(STRING_AGG(t.tag, ' '))), lower(unaccent(research)))
-from tag t, myneresourceinformation m, resourcetag r 
-where 
- m.id = r.resource and r.tag = t.id and
-t.tag_tsv @@
-to_tsquery('portuguese',(select replace(unaccent(trim(research)),' ',' | ')))
-and m.type = 'POST'
-group by t.id , m.mri
-order by similarity desc
-limit coalesce(itens_by_page, 5)
-offset coalesce(page, 0) * coalesce(itens_by_page, 5)
-) m
-cross join lateral findresourcedata(m.resource_id) as rd
-cross join lateral findresourcebyowner(m.resource_id) as ro) r 
-group by r.owner, r.data_post) r
-left join lateral findresourcebyowner(r.owner) ro on true
-where ro.type = 'PROFILE_IMAGE' or ro.type isnull
-group by r.owner, r.data_post, r.data) r 
-cross join lateral findresourcedata(r.owner) as ro) r
-
-union all
-
-select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json(r.data) as data from
-(select jsonb_build_object('type', rd.type) || jsonb(rd.data)|| jsonb_build_object('profile_image', ro.data) as data from
-(select replace(m.mri,'mri::','') as resource_id, 
-t.id, tsvector_agg(t.tag_tsv), similarity(lower(unaccent(STRING_AGG(t.tag, ' '))), lower(unaccent(research)))
-from tag t, myneresourceinformation m, resourcetag r 
-where 
- m.id = r.resource and r.tag = t.id and m.type = 'USER' and
-t.tag_tsv @@
-to_tsquery('portuguese',(select replace(unaccent(trim(research)),' ',' | ')))
-group by t.id , m.mri
-order by similarity desc
-limit coalesce(itens_by_page, 5)
-offset coalesce(page, 0) * coalesce(itens_by_page, 5)
-) m
-cross join lateral findresourcedata(m.resource_id) as rd
-LEFT   JOIN LATERAL findresourcebyowner(m.resource_id) ro ON true
-where ro.type isnull or ro.type = 'PROFILE_IMAGE') r
-
-union all
-
-select cast(uuid_generate_v4() as varchar) as id,  cast('RESEARCH' as varchar) as type, to_json( r.data) as data from 
-(select jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
-from
-(select r.owner,  array_agg(ro.data), r.data_post, r.data as data_slave from
-(select r.owner, r.data_post, jsonb_build_object('nested', array_agg(r.data_slave)) as data from
-(select rd.owner, jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
-jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave from
-(select replace(m.mri,'mri::','') as resource_id, 
-t.id, tsvector_agg(t.tag_tsv), similarity(lower(unaccent(STRING_AGG(t.tag, ' '))), lower(unaccent(research)))
-from tag t, myneresourceinformation m, resourcetag r 
-where 
- m.id = r.resource and r.tag = t.id and --m.type = :type and
-t.tag_tsv @@
-to_tsquery('portuguese',(select replace(unaccent(trim(research)),' ',' | ')))
-and m.type = 'PRODUCT'
-group by t.id , m.mri
-order by similarity desc
-limit coalesce(itens_by_page, 5)
-offset coalesce(page, 0) * coalesce(itens_by_page, 5)
-) m
-cross join lateral findresourcedata(m.resource_id) as rd
-cross join lateral findresourcebyowner(m.resource_id) as ro) r 
-group by r.owner, r.data_post) r
-left join lateral findresourcebyowner(r.owner) ro on true
-where ro.type = 'PROFILE_IMAGE' or ro.type isnull
-group by r.owner, r.data_post, r.data) r 
-cross join lateral findresourcedata(r.owner) as ro) r;
-
-end IF ;
-  
- 
-
   
   	
    RETURN;
@@ -3695,6 +3656,119 @@ loop
    RETURN;
 
 END;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.password_recovery(user_email character varying)
+ RETURNS SETOF mynejsontype
+ LANGUAGE plpgsql
+AS $function$
+   DECLARE
+      resource_t public.mynejsontype%ROWTYPE;
+BEGIN
+
+ 	FOR resource_t in
+
+
+select cast(uuid_generate_v4() as varchar) as id, 'PASSWORD' as type, to_json(jsonb_build_object('password',
+(case when u.password = 'PROVIDED BY OAUTH'
+then 'Your password could not be recovered.' else u.password end)) || jsonb_build_object('name', u.name))
+as "data"
+FROM myneuser u WHERE u.email = user_email
+
+loop
+		RETURN NEXT resource_t;
+	
+   END LOOP;
+  
+  	
+   RETURN;
+
+END;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.product_page(product_id character varying)
+ RETURNS SETOF mynejsontype
+ LANGUAGE plpgsql
+AS $function$
+   declare
+      resource_t public.mynejsontype%ROWTYPE;
+
+begin
+
+ 	for resource_t in	
+ 	
+select cast(uuid_generate_v4() as varchar) as id, cast('PRODUCT' as varchar) as  "type", 
+	p.product_data || 
+jsonb_build_object('user', jsonb_build_object('user', p.user_data) || jsonb_build_object('profile_image', p.profile_image)) ||
+jsonb_build_object('nested', array_agg(p.module_data)) as "data"
+from
+	(
+	select
+		p.product_data,
+		p.product_slave,
+		p.user_data,
+		p.profile_image,
+		(case
+			when cast(p.module_file as varchar) = '{"nested": [null]}' then p.product_slave
+			else p.product_slave || p.module_file
+		end) as module_data
+	from
+		(
+		select
+			p.product_data,
+			p.product_slave,
+			p.user_data,
+			p.profile_image,
+			jsonb_build_object('nested' , array_agg(p.module_file)) as module_file
+		from
+			(
+			select
+				replace(m.mri, 'mri::', ''),
+				jsonb_build_object('type', p.type) || jsonb(p.data) as product_data,
+				jsonb_build_object('type', pr.type) || jsonb(pr.data) as product_slave ,
+				jsonb_build_object('type', o.type) || jsonb(o.data) as user_data,
+				jsonb_build_object('type', ot.type) || jsonb(ot.data) as profile_image,
+				(case
+					when ms.data isnull then null
+					else jsonb_build_object('type', ms.type) || jsonb(ms.data)
+				end) as module_file
+			from
+				myneresourceinformation m
+			left join lateral findresourcedata(replace(m.mri, 'mri::', '')) as p on
+				true
+			left join lateral findresourcebyowner(replace(m.mri, 'mri::', '')) as pr on
+				true
+			left join lateral findresourcedata(p.owner) as o on
+				true
+			left join lateral findresourcebyownerandtype(p.owner,
+				'PROFILE_IMAGE') as ot on
+				true
+			left join lateral findresourcebyowner(cast(pr.data ->> 'id' as varchar)) as ms on
+				true
+			where
+				m.type = 'PRODUCT'
+				and o.type = 'USER'
+				and replace(m.mri, 'mri::', '') = product_id ) p
+		group by
+			p.product_data,
+			p.product_slave,
+			p.user_data,
+			p.profile_image) p) p
+group by
+	p.product_data,
+	p.user_data,
+	p.profile_image
+	
+	loop
+		return next resource_t;
+end loop;
+
+return;
+end;
 
 $function$
 ;
@@ -4179,6 +4253,19 @@ CREATE OR REPLACE FUNCTION public.similarity_op(text, text)
 AS '$libdir/pg_trgm', $function$similarity_op$function$
 ;
 
+CREATE OR REPLACE FUNCTION public.slugcolumn(tbl_name character varying, clmn_name character varying)
+ RETURNS TABLE(slug json)
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+RETURN QUERY 
+
+EXECUTE format('select row_to_json(s) as slug from (select id, slugify(%s) as slug from %I) s',clmn_name,tbl_name);
+
+ END;
+$function$
+;
+
 CREATE OR REPLACE FUNCTION public.slugify(value text)
  RETURNS text
  LANGUAGE sql
@@ -4245,6 +4332,80 @@ CREATE OR REPLACE FUNCTION public.strict_word_similarity_op(text, text)
  LANGUAGE c
  STABLE PARALLEL SAFE STRICT
 AS '$libdir/pg_trgm', $function$strict_word_similarity_op$function$
+;
+
+CREATE OR REPLACE FUNCTION public.tagpostinsert()
+ RETURNS trigger
+ LANGUAGE plpgsql
+AS $function$
+
+BEGIN
+
+
+insert into tag(tag, tag_tsv) select a.tag1, a.to_tsvector from
+(select p.title  as tag1 , to_tsvector('portuguese', unaccent(p.title))
+from myneresourceinformation m, post p
+where replace(m.mri, 'mri::', '') = p.id
+except
+select t.tag, t.tag_tsv from tag t) a;
+
+insert into resourcetag(resource, tag) select a.id, a.tag_id from
+(select m.id, t.id as tag_id 
+from myneresourceinformation m, post p, tag t 
+where replace(m.mri, 'mri::', '') = p.id and p.title = t.tag
+except
+select r.resource, r.tag from resourcetag r) a;
+
+insert into "global".research(id, createdate, type, tag, ts_vector, releasedate, owner, research_data)
+select u.id, u.createdate, u.type, u.tag, u.ts_vector, u.releasedate, u.owner, u.data
+from
+(select cast(r.data ->> 'id' as varchar) as id,  cast(r.data ->> 'createDate' as timestamp with time zone) as createdate,
+cast('POST' as varchar) as type, concat(cast(r.data ->> 'title' as varchar)) as tag,
+to_tsvector(cast(r.data ->> 'title' as varchar)) as ts_vector, cast(r.data ->> 'releaseDate' as timestamp with time zone) as releasedate,
+f.owner,
+to_json( r.data) as data  from 
+(select jsonb_build_object('user', (jsonb(ro.data) || jsonb_build_object('profile_image', r.array_agg))) || r.data_post || r.data_slave as data
+from
+(select r.owner,  array_agg(ro.data), r.data_post, r.data as data_slave from
+(select r.owner, r.data_post, jsonb_build_object('nested', array_agg(r.data_slave)) as data from
+(select rd.owner, jsonb_build_object('type', rd.type) || jsonb(rd.data) as data_post ,
+jsonb_build_object('type', ro.type) || jsonb(ro.data) as data_slave from
+(select replace(m.mri, 'mri::', '') as resource_id from myneresourceinformation m where m.type = 'POST' and 
+replace(m.mri, 'mri::', '') not in 
+('d394890b-d001-43af-b280-2db7297bee1a',
+'4f667f43-f529-4f04-89e9-acc124a449e9',
+'f9f8b822-db26-4dfe-ae0c-9db629a714bc',
+'30dc34ec-c049-4533-9ddc-4382220529a3',
+'f8e33cfb-4f5f-469f-84e2-2e911a3c304b',
+'68cc0189-0ded-4495-b73b-611ff807dc7e',
+'ed02ac7b-7fd3-4aba-8557-5240e95bc538',
+'c1980d8b-53b2-4f41-abbd-d3b6b1de389b',
+'11f0e39d-13f5-4dcd-945e-3d9ecc49a75c',
+'36a7ea09-dfb7-4ab6-8d93-ad0b954fe3d8',
+'f0e688e6-138b-4d43-9c71-d38f50c0b33d',
+'865c7bb5-7007-44cf-ad44-87318f2fa131',
+'3a3b3ed7-63c8-4b5b-a7c2-80039e1005cc',
+'f753e12a-292b-4c73-a2ec-471b49033a87',
+'23563ec3-fc64-4d10-a253-1d2350d00ec9',
+'00b3a7ef-ea8b-400d-b944-f3d5fbcc309e')
+except
+select r.id from global.research r where r.type = 'POST') m
+cross join lateral findresourcedata(m.resource_id) as rd
+cross join lateral findresourcebyowner(m.resource_id) as ro) r 
+group by r.owner, r.data_post) r
+left join lateral findresourcebyowner(r.owner) ro on true
+where ro.type = 'PROFILE_IMAGE' or ro.type isnull
+group by r.owner, r.data_post, r.data) r 
+cross join lateral findresourcedata(r.owner) as ro) r
+left join findresourcedata(cast(r.data ->> 'id' as varchar)) as f on true
+left join myneresourceinformation m on f.owner = replace(m.mri, 'mri::', '')
+where m.type = 'USER' ) u;
+
+RETURN NEW;
+
+END;
+
+$function$
 ;
 
 CREATE OR REPLACE FUNCTION public.tagproductinsert()
@@ -4430,6 +4591,34 @@ WHERE
 RETURN NEW;
 
 END;
+
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.user_notification(user_id character varying)
+ RETURNS SETOF mynejsontype
+ LANGUAGE plpgsql
+AS $function$
+   declare
+      resource_t public.mynejsontype%ROWTYPE;
+
+begin
+
+ 	for resource_t in	
+
+
+
+select cast(uuid_generate_v4() as varchar) as id, cast('NOTIFICATION' as varchar) as "type", 
+row_to_json(m.*) as data from messagenotification m 
+where m.receiverid = user_id and (DATE_PART('day', now() - m.delivereddatetime) < 7)
+order by m.delivereddatetime desc
+
+loop
+		return next resource_t;
+end loop;
+
+return;
+end;
 
 $function$
 ;
@@ -4636,3 +4825,40 @@ CREATE OR REPLACE FUNCTION public.word_similarity_op(text, text)
  STABLE PARALLEL SAFE STRICT
 AS '$libdir/pg_trgm', $function$word_similarity_op$function$
 ;
+
+
+-- DROP SCHEMA "global";
+
+CREATE SCHEMA "global" AUTHORIZATION postgres;
+-- "global".insights definition
+
+-- Drop table
+
+-- DROP TABLE "global".insights;
+
+CREATE TABLE "global".insights (
+	insight_id varchar(36) NOT NULL,
+	userid varchar(36) NOT NULL,
+	insight_data jsonb NOT NULL,
+	releasedate timestamptz NOT NULL DEFAULT now(),
+	user_data jsonb NULL,
+	insert_date timestamp NOT NULL DEFAULT now()
+);
+
+
+-- "global".research definition
+
+-- Drop table
+
+-- DROP TABLE "global".research;
+
+CREATE TABLE "global".research (
+	id varchar(36) NOT NULL,
+	createdate timestamp NOT NULL DEFAULT now(),
+	"type" varchar(255) NULL,
+	tag varchar(10240) NULL,
+	ts_vector tsvector NULL,
+	research_data json NULL,
+	releasedate timestamptz NOT NULL DEFAULT now(),
+	"owner" varchar(36) NULL
+);
