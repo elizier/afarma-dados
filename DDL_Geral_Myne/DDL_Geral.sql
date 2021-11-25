@@ -24,6 +24,15 @@ CREATE TABLE public."_exec" (
 );
 
 
+-- Agregate tsvector
+
+CREATE AGGREGATE tsvector_agg(tsvector) (
+   STYPE = pg_catalog.tsvector,
+   SFUNC = pg_catalog.tsvector_concat,
+   INITCOND = ''
+);
+
+
 -- public.address definition
 
 -- Drop table
