@@ -14,7 +14,7 @@ insert into public.product
 p.implementation, p.indication, p.name, p.photo, p.price, p.updated_date, p.url, p.related_products, p.active_ingredient, p.retencao_receita,
 p.cron 
 FROM 
- dblink('dbname=postgres port=5432 host=crawler-merge.ctaih4y3js5d.sa-east-1.rds.amazonaws.com user=postgres password=afarma2021',
+ dblink('dbname=postgres port=55550 host=168.121.77.227 user=postgres password=afarma2021',
                 'SELECT * from public.product p')
     AS p (id uuid,
 	brand varchar(10240),
@@ -40,7 +40,7 @@ select pp.ean, pp.implementation, max(pp.updated_date) as updated_date from
 (
 select *
 FROM 
- dblink('dbname=postgres port=5432 host=crawler-merge.ctaih4y3js5d.sa-east-1.rds.amazonaws.com user=postgres password=afarma2021',
+ dblink('dbname=postgres port=55550 host=168.121.77.227 user=postgres password=postgres',
                 'SELECT * from public.product p')
     AS p (id uuid,
 	brand varchar(10240),
@@ -68,7 +68,7 @@ and pp.ean in
 (
 (select distinct(p.ean)
 FROM 
- dblink('dbname=postgres port=5432 host=crawler-merge.ctaih4y3js5d.sa-east-1.rds.amazonaws.com user=postgres password=afarma2021',
+ dblink('dbname=postgres port=55550 host=168.121.77.227 user=postgres password=afarma2021',
                 'SELECT * from public.product p')
     AS p (id uuid,
 	brand varchar(10240),
@@ -108,7 +108,7 @@ from
 (
 select p.implementation as concorrente, p.ean as ean1,  max(p.updated_date) as date
 FROM 
- dblink('dbname=postgres port=5432 host=crawler-merge.ctaih4y3js5d.sa-east-1.rds.amazonaws.com user=postgres password=afarma2021',
+ dblink('dbname=postgres port=55550 host=168.121.77.227 user=postgres password=afarma2021',
                 'SELECT * from public.product p')
     AS p (id uuid,
 	brand varchar(10240),
@@ -133,7 +133,7 @@ FROM
 	(
 select p.implementation as concorrente, p.ean as ean1, p.price as preco, max(p.updated_date) as date
 FROM 
- dblink('dbname=postgres port=5432 host=crawler-merge.ctaih4y3js5d.sa-east-1.rds.amazonaws.com user=postgres password=afarma2021',
+ dblink('dbname=postgres port=55550 host=168.121.77.227 user=postgres password=afarma2021',
                 'SELECT * from public.product p')
     AS p (id uuid,
 	brand varchar(10240),
