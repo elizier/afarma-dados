@@ -10,13 +10,13 @@ begin
     --insert into public.product
 
 insert into public.product
-(select p.id, p.brand, p.category, p.contraindication, p.created_date, p.department, p.description, p.ean,
-p.implementation, p.indication, p.name, p.photo, p.price, p.updated_date, p.url, p.related_products, p.active_ingredient, p.retencao_receita,
-p.cron 
+(select p.id, p.active_ingredient, p.brand, p.category, p.contraindication, p.created_date, p.department, p.description, p.ean,
+p.implementation, p.indication, p.name, p.photo, '', p.price,  p.related_products,  p.retencao_receita, p.updated_date, p.url
 FROM 
- dblink('dbname=postgres port=55550 host=168.121.77.227 user=postgres password=afarma2021',
+ dblink('dbname=postgres port=55550 host=168.121.77.227 user=postgres password=postgres',
                 'SELECT * from public.product p')
     AS p (id uuid,
+	active_ingredient varchar(10240),
 	brand varchar(10240),
 	category varchar(10240),
 	contraindication varchar(10240),
@@ -29,12 +29,11 @@ FROM
 	"name" varchar(2048),
 	photo bytea,
 	price float4,
+	related_products _text,
+	retencao_receita varchar(255),
 	updated_date timestamp,
 	url varchar(10240),
-	related_products _text,
-	active_ingredient varchar(10240),
-	retencao_receita varchar(255),
-	cron varchar(14)),
+	server_crawler varchar(255)),
 (
 select pp.ean, pp.implementation, max(pp.updated_date) as updated_date from 
 (
@@ -43,6 +42,7 @@ FROM
  dblink('dbname=postgres port=55550 host=168.121.77.227 user=postgres password=postgres',
                 'SELECT * from public.product p')
     AS p (id uuid,
+	active_ingredient varchar(10240),
 	brand varchar(10240),
 	category varchar(10240),
 	contraindication varchar(10240),
@@ -55,12 +55,11 @@ FROM
 	"name" varchar(2048),
 	photo bytea,
 	price float4,
+	related_products _text,
+	retencao_receita varchar(255),
 	updated_date timestamp,
 	url varchar(10240),
-	related_products _text,
-	active_ingredient varchar(10240),
-	retencao_receita varchar(255),
-	cron varchar(14))
+	server_crawler varchar(255))
 ) pp
 group by pp.ean, pp.implementation) pp
 where pp.ean=p.ean and pp.implementation=p.implementation and pp.updated_date=p.updated_date 
@@ -68,9 +67,10 @@ and pp.ean in
 (
 (select distinct(p.ean)
 FROM 
- dblink('dbname=postgres port=55550 host=168.121.77.227 user=postgres password=afarma2021',
+ dblink('dbname=postgres port=55550 host=168.121.77.227 user=postgres password=postgres',
                 'SELECT * from public.product p')
     AS p (id uuid,
+	active_ingredient varchar(10240),
 	brand varchar(10240),
 	category varchar(10240),
 	contraindication varchar(10240),
@@ -83,12 +83,11 @@ FROM
 	"name" varchar(2048),
 	photo bytea,
 	price float4,
+	related_products _text,
+	retencao_receita varchar(255),
 	updated_date timestamp,
 	url varchar(10240),
-	related_products _text,
-	active_ingredient varchar(10240),
-	retencao_receita varchar(255),
-	cron varchar(14)))
+	server_crawler varchar(255)))
 	except
 	(select distinct(p.ean) from public.product p)
 	))
@@ -108,9 +107,10 @@ from
 (
 select p.implementation as concorrente, p.ean as ean1,  max(p.updated_date) as date
 FROM 
- dblink('dbname=postgres port=55550 host=168.121.77.227 user=postgres password=afarma2021',
+ dblink('dbname=postgres port=55550 host=168.121.77.227 user=postgres password=postgres',
                 'SELECT * from public.product p')
     AS p (id uuid,
+	active_ingredient varchar(10240),
 	brand varchar(10240),
 	category varchar(10240),
 	contraindication varchar(10240),
@@ -123,19 +123,19 @@ FROM
 	"name" varchar(2048),
 	photo bytea,
 	price float4,
+	related_products _text,
+	retencao_receita varchar(255),
 	updated_date timestamp,
 	url varchar(10240),
-	related_products _text,
-	active_ingredient varchar(10240),
-	retencao_receita varchar(255),
-	cron varchar(14))
+	server_crawler varchar(255))
 	group by p.ean, p.implementation) p,
 	(
 select p.implementation as concorrente, p.ean as ean1, p.price as preco, max(p.updated_date) as date
 FROM 
- dblink('dbname=postgres port=55550 host=168.121.77.227 user=postgres password=afarma2021',
+ dblink('dbname=postgres port=55550 host=168.121.77.227 user=postgres password=postgres',
                 'SELECT * from public.product p')
     AS p (id uuid,
+	active_ingredient varchar(10240),
 	brand varchar(10240),
 	category varchar(10240),
 	contraindication varchar(10240),
@@ -148,12 +148,11 @@ FROM
 	"name" varchar(2048),
 	photo bytea,
 	price float4,
+	related_products _text,
+	retencao_receita varchar(255),
 	updated_date timestamp,
 	url varchar(10240),
-	related_products _text,
-	active_ingredient varchar(10240),
-	retencao_receita varchar(255),
-	cron varchar(14))
+	server_crawler varchar(255))
 	group by p.ean, p.implementation, p.price) pr
 	where pr.date=p.date and pr.ean1=p.ean1 and p.concorrente=pr.concorrente) p
 	group by p.date, p.concorrente, p.ean1) p
@@ -258,9 +257,9 @@ except
 ) p 
 where p.pathimage notnull) p;
 
---update public.product set pathimage = p.newpath  from
---(select p.id as id1, p."implementation", p.pathimage, concat('/',p."implementation",'/img_',p.id,'.png') as newpath  from public.product p) p
---where id = p.id1
+update public.product set pathimage = p.newpath  from
+(select p.id as id1, p."implementation", p.pathimage, concat('/',p."implementation",'/img_',p.id,'.png') as newpath  from public.product p) p
+where id = p.id1
 
 
 
@@ -344,6 +343,33 @@ left join afarma.principioativo a
 on a.descricao=p.active_ingredient) n 
 on (n.nome=m.nome and n.ean=m.ean and n.descricao=m.active_ingredient)) y
  ;
+
+
+insert into afarma.produtocrawler
+select (cast(uuid_generate_v4() as varchar)), y.contraindicacao, y.descricao,y.ean,y.indicacao, y.nome ,
+y.categoria_id, y.departamento_id, y.marca_id, y.photo_id,
+y.principioativo_id , '' as produto_tsv from
+(select unaccent(UPPER(p.name)) as nome, p.ean, unaccent(UPPER(p.description)) as descricao,
+unaccent(UPPER(p.contraindication)) as contraindicacao, UPPER(p.indication) as indicacao,
+coalesce(m.id, (select m.id from afarma.marca m where m.marca = 'NÃO IDENTIFICADO')) as marca_id, 
+coalesce(pa.id, (select pa.id from afarma.principioativo pa where pa.descricao = 'NÃO IDENTIFICADO')) as principioativo_id,
+coalesce(c.id, (select c.id from afarma.categoria c where c.categoria = 'NÃO IDENTIFICADO')) as categoria_id,
+coalesce(ph.id, (select ph.id from afarma.photo ph where ph."path" = '/aFarma/img.png')) as photo_id,
+d.id as departamento_id
+from public.product p
+left join afarma.marca m on m.marca = UPPER(p.brand)
+left join afarma.principioativo pa on pa.descricao = UPPER(p.active_ingredient)
+left join afarma.categoria c on c.categoria = UPPER(p.category)
+left join afarma.photo ph on ph."path" = p.pathimage
+left join afarma.departamento_xpto dx on translate(translate(Upper(CAST(p.department AS varchar)), '{}"',''),'áàâãäåaaaÁÂÃÄÅAAAÀéèêëeeeeeEEEÉEEÈìíîïìiiiÌÍÎÏÌIIIóôõöoooòÒÓÔÕÖOOOùúûüuuuuÙÚÛÜUUUUçÇñÑýÝ',
+'aaaaaaaaaAAAAAAAAAeeeeeeeeeEEEEEEEiiiiiiiiIIIIIIIIooooooooOOOOOOOOuuuuuuuuUUUUUUUUcCnNyY')=dx.departamento
+left join afarma.departamento_de_para dp on dx.departamento=dp.departamento_xpto  
+left join afarma.departamento d on dp.departamento_afarma_id=d.id 
+where p.ean in
+(select distinct(p.ean) from public.product p where p.ean in (select e.ean from public.ean_ref e)
+except 
+(select distinct(p.ean) from afarma.produtocrawler p where p.ean notnull))) y;
+
 
 update afarma.produtocrawler set produto_tsv=p.tsv from
 (select p.id as id1, (to_tsvector('portuguese',upper(unaccent(p.nome))) || to_tsvector('portuguese',upper(unaccent(p.categoria))) || 
@@ -540,7 +566,16 @@ select distinct (dm.nome) from afarma.dominio dm where dm.tipo_id = (select t.id
 
 insert into afarma.dominio select uuid_generate_v4(), g.nome, (select t.id from afarma.tipodominio t where t.nome = 'GRUPO')
 from
-(select distinct(gg.nome) from generico_grupo gg) g
+(select distinct(gg.nome) from generico_grupo gg
+except 
+select d.nome from afarma.dominio d where d.tipo_id = (select t.id from afarma.tipodominio t where t.nome = 'GRUPO') ) g
+
+delete from afarma.dominio d where d.id in 
+(select g.id from
+(select max(d.id) as id, d.nome from afarma.dominio d where d.tipo_id = (select t.id from afarma.tipodominio t where t.nome = 'GRUPO')
+and d.id not in (select distinct(p.grupo_id) from afarma.produto p)
+group by d.nome) g)
+
 
 --Departamento
 
@@ -1108,6 +1143,84 @@ where id=f.produto;
 
 
 drop materialized view PRODUTOS_ALL_OTIMIZADO_ILPI_RJ;
+
+
+create materialized view PRODUTOS_ALL_OTIMIZADO_ILPI_RJ as
+(
+select cast(uuid_generate_v4() as varchar) as id, p.name as nome, p.ean, p.price as precomedio, pr.produto_id, pr.marca_id, pr.categoria_id, pr.photo_id,
+pr.principioativo_id, pr.contraindicacao, pr.descricao , pr.indicacao , '' as lojapromocao, '' as photo, pr.produto_tsv, pr.departamento_id from 
+(select p.name, max(p.ean) as ean, pr.price from
+(select (case when g.nome_grupo isnull then p.name else g.nome_grupo end) as name, p.ean from
+(select max(b.name) as name, b.ean from
+(select p.ean, max(p.length) as "length" from 
+(select p.name, p.ean, LENGTH(p.name) from product p
+where p.ean in 
+(select distinct(e.ean) from
+(
+select e.ean from public.ean_ref e where e.ean != 'DIVERSOS'
+union all 
+select distinct(g.ean) from genericos_ref g
+) e) and p.price > 0) p
+group by p.ean) a,
+(select p.name, p.ean, LENGTH(p.name) from product p
+where p.ean in 
+(select distinct(e.ean) from
+(
+select distinct(g.ean) from genericos_ref g
+) e)) b
+where a.ean = b.ean and a."length" = b."length"
+group by b.ean, b.length) p
+left join genericos_ref g on g.ean = p.ean) p
+left join
+(select p.nome_grupo, avg(p.price) as price from
+(select p.ean, g.nome_grupo, p.price from
+public.product p
+left join 
+public.genericos_ref g on g.ean = p.ean
+where g.nome_grupo notnull and p.price > 0
+group by p.ean, g.nome_grupo, p.price) p
+group by p.nome_grupo) pr on p.name = pr.nome_grupo
+group by p.name, pr.price
+
+union all 
+
+
+select p.name, p.ean, pr.price from 
+(select max(b.name) as name, b.ean from
+(select p.ean, max(p.length) as "length" from 
+(select p.name, p.ean, LENGTH(p.name) from product p
+where p.ean in 
+(select distinct(e.ean) from
+(
+select e.ean from public.ean_ref e where e.ean != 'DIVERSOS'
+union all 
+select distinct(g.ean) from genericos_ref g
+) e) and p.price > 0) p
+group by p.ean) a,
+(select p.name, p.ean, LENGTH(p.name) from product p
+where p.ean in 
+(select distinct(e.ean) from
+(
+select e.ean from public.ean_ref e where e.ean != 'DIVERSOS'
+) e)) b
+where a.ean = b.ean and a."length" = b."length"
+group by b.ean, b.length) p
+left join 
+(SELECT p.ean, avg(p.price) as price FROM public.product p
+where p.ean in 
+(select distinct(e.ean) from
+(
+select e.ean from public.ean_ref e where e.ean != 'DIVERSOS'
+) e)
+group by p.ean
+having avg(p.price) > 0) pr on pr.ean = p.ean) p
+left join
+(select pc.ean, pc.produto_id, p.marca_id, p.categoria_id, p.photo_id,
+p.principioativo_id, p.contraindicacao, p.descricao , p.indicacao, p.produto_tsv, p.departamento_id
+from afarma.produtoconcorrente pc, afarma.produtocrawler p 
+where pc.produto_id = p.id ) pr
+on pr.ean = p.ean
+where pr.produto_id notnull);
 
 create materialized view PRODUTOS_ALL_OTIMIZADO_ILPI_RJ as
 (
