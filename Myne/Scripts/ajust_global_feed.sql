@@ -37,7 +37,7 @@ create materialized view globalfeed as
 FROM (
 	SELECT f.viewbyday, f.user_id
 		,jsonb_build_object('user', f.user_data) AS user_data
-		,f.post_data || jsonb_build_object('nested', array_agg(to_jsonb(p.data) || jsonb_build_object('type', p.type))) AS post_data
+		,f.post_data || jsonb_build_object('nested', array_agg(to_jsonb(p.data) || jsonb_build_object('type', p.type))) || t.tag AS post_data
 	FROM (
 		SELECT a.accountability_id, (a.views) / (case when (DATE_PART('day', now() - cast(f.data ->> 'createDate' AS timestamp with time zone))) = 0 then 1 else
 		(DATE_PART('day', now() - cast(f.data ->> 'createDate' AS timestamp with time zone))) end) as viewbyday
@@ -54,11 +54,19 @@ FROM (
 		LEFT JOIN lateral findresourcedata(f.OWNER) u ON true
 		where f.type = 'POST') f
 	LEFT JOIN lateral findresourcebyowner(cast(f.post_data ->> 'id' AS VARCHAR)) p ON true
+	left join (select m.id, jsonb_build_object('tags', string_to_array(m.tag, ' ')) as tag from
+(select replace(m.mri, 'mri::', '') as id, string_agg(t.tag, ' ')  
+as tag from myneresourceinformation m 
+left join resourcetag r on r.resource = m.id
+left join tag t on r.tag = t.id
+where m."type" = 'POST'
+group by m.id) m) t on t.id = cast(f.post_data ->> 'id' AS VARCHAR)
 	WHERE f.user_id notnull
 		AND f.user_id != 'DON''T HAVE'
 	GROUP BY f.user_id, f.viewbyday
 		,f.post_data
 		,f.user_data
+		,t.tag
 	) f
 LEFT JOIN lateral findresourcebyownerandtype(f.user_id, 'PROFILE_IMAGE') p ON true
 order by f.viewbyday desc)
